@@ -1,7 +1,11 @@
+@'
+/** @type {import('postcss').Config} */
 const config = {
   plugins: {
-    "@tailwindcss/postcss": {},
+    tailwindcss: {},
+    autoprefixer: {},
   },
 };
 
 export default config;
+'@ | Out-File -FilePath postcss.config.mjs -Encoding utf8
