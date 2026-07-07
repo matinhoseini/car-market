@@ -8,21 +8,26 @@ class RegisterSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['username', 'email', 'password', 'password2']
+        extra_kwargs = {
+            'password': {'write_only': True}
+        }
 
-    
     def validate(self, data):
         if data['password'] != data['password2']:
             raise serializers.ValidationError("Passwords do not match")
 
         return data
 
-   
     def validate_username(self, value):
         if len(value) < 3:
-            raise serializers.ValidationError("Username must be at least 3 characters")
+            raise serializers.ValidationError(
+                "Username must be at least 3 characters"
+            )
 
         if User.objects.filter(username=value).exists():
-            raise serializers.ValidationError("Username already exists")
+            raise serializers.ValidationError(
+                "Username already exists"
+            )
 
         return value
 
@@ -36,3 +41,10 @@ class RegisterSerializer(serializers.ModelSerializer):
         )
 
         return user
+
+
+class ProfileSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'email']
