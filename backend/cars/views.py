@@ -1,4 +1,4 @@
-from rest_framework.generics import RetrieveAPIView
+from rest_framework.generics import RetrieveAPIView, RetrieveUpdateDestroyAPIView
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -7,6 +7,7 @@ from drf_spectacular.utils import extend_schema
 
 from .serializers import CarSerializer
 from .models import Car
+from .permissions import IsOwner
 
 
 @extend_schema(
@@ -35,6 +36,14 @@ def car_list(request):
     serializer = CarSerializer(cars, many=True)
 
     return Response(serializer.data)
+
+
 class CarDetailView(RetrieveAPIView):
     queryset = Car.objects.all()
     serializer_class = CarSerializer
+
+
+class CarManageView(RetrieveUpdateDestroyAPIView):
+    queryset = Car.objects.all()
+    serializer_class = CarSerializer
+    permission_classes = [IsOwner]
