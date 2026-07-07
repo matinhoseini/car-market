@@ -1,3 +1,4 @@
+from rest_framework.generics import RetrieveAPIView
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -5,6 +6,7 @@ from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema
 
 from .serializers import CarSerializer
+from .models import Car
 
 
 @extend_schema(
@@ -21,3 +23,18 @@ def create_car(request):
         return Response(serializer.data, status=201)
 
     return Response(serializer.errors, status=400)
+
+
+@extend_schema(
+    responses=CarSerializer(many=True),
+)
+@api_view(['GET'])
+def car_list(request):
+    cars = Car.objects.all()
+
+    serializer = CarSerializer(cars, many=True)
+
+    return Response(serializer.data)
+class CarDetailView(RetrieveAPIView):
+    queryset = Car.objects.all()
+    serializer_class = CarSerializer
