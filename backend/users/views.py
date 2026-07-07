@@ -1,18 +1,23 @@
-from django.contrib.auth.models import User
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
-@api_view(["POST"])
+from drf_spectacular.utils import extend_schema
+
+from .serializers import RegisterSerializer
+
+
+@extend_schema(
+    request=RegisterSerializer,
+    responses={200: dict}
+)
+@api_view(['POST'])
 def register(request):
-    username = request.data["username"]
-    password = request.data["password"]
+    serializer = RegisterSerializer(data=request.data)
 
-    user = User.objects.create_user(
-        username=username,
-        password=password
-    )
+    if serializer.is_valid():
+        serializer.save()
+        return Response({
+            "message": "user created"
+        })
 
-    return Response({
-        "message": "user created",
-        "user": user.username
-    })
+    return Response(serializer.errors)
