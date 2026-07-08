@@ -10,3 +10,14 @@ backend/venv/
 
 # macOS
 .DS_Store
+
+# Django
+backend/db.sqlite3
+backend/media/
+
+# Python cache
+**/__pycache__/
+*.pyc
+
+# Node
+frontend/node_modules/
