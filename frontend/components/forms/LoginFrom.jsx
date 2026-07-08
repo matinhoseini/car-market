@@ -1,56 +1,59 @@
-// components/forms/RegisterForm.jsx
+// components/forms/LoginForm.jsx
 "use client";
 
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import { Eye, EyeOff, User, Mail, Lock } from "lucide-react";
+import { Eye, EyeOff, User, Lock } from "lucide-react";
 import { authService } from "../../services/auth.service";
 
-export default function RegisterForm() {
+export default function LoginForm() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const {
     register,
     handleSubmit,
-    watch,
     formState: { errors },
   } = useForm();
 
-  const password = watch("password");
-
+  // ===== Form Submission Handler =====
   const onSubmit = async (data) => {
     setIsLoading(true);
 
     try {
-      await authService.register(data);
+      const response = await authService.login(data);
 
-      toast.success("Account created successfully! 🎉", {
-        icon: "🎉",
-        duration: 4000,
+      // Store tokens in localStorage
+      localStorage.setItem("access_token", response.access);
+      localStorage.setItem("refresh_token", response.refresh);
+      localStorage.setItem("user", JSON.stringify(response.user));
+
+      // ✅ این خط رو اضافه کن - باعث میشه هدر آپدیت بشه
+      window.dispatchEvent(new Event("storage"));
+
+      toast.success("Welcome back! 🎉", {
+        icon: "👋",
+        duration: 3000,
       });
 
-      // router.push("/auth/login");
+      router.push("/dashboard");
     } catch (error) {
-      console.error("❌ Registration error:", error);
+      console.error("❌ Login error:", error);
 
-      let errorMessage = "Registration failed";
+      let errorMessage = "Invalid username or password";
 
       if (error.response?.data) {
-        const errors = error.response.data;
-        if (typeof errors === "object") {
-          errorMessage = Object.entries(errors)
-            .map(([field, messages]) => `${field}: ${messages.join(", ")}`)
-            .join(" • ");
+        const detail = error.response.data.detail;
+        if (detail) {
+          errorMessage = detail;
         }
       }
 
       toast.error(errorMessage, {
-        duration: 5000,
+        duration: 4000,
       });
     } finally {
       setIsLoading(false);
@@ -59,7 +62,7 @@ export default function RegisterForm() {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-      {/* ===== Username ===== */}
+      {/* ===== Username Field ===== */}
       <div>
         <label className="label">Username</label>
         <div className="relative">
@@ -82,30 +85,7 @@ export default function RegisterForm() {
         )}
       </div>
 
-      {/* ===== Email ===== */}
-      <div>
-        <label className="label">Email Address</label>
-        <div className="relative">
-          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-          <input
-            type="email"
-            className="input pl-10"
-            placeholder="you@example.com"
-            {...register("email", {
-              required: "Email is required",
-              pattern: {
-                value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-                message: "Please enter a valid email",
-              },
-            })}
-          />
-        </div>
-        {errors.email && (
-          <p className="text-sm text-red-500 mt-1">{errors.email.message}</p>
-        )}
-      </div>
-
-      {/* ===== Password ===== */}
+      {/* ===== Password Field ===== */}
       <div>
         <label className="label">Password</label>
         <div className="relative">
@@ -113,7 +93,7 @@ export default function RegisterForm() {
           <input
             type={showPassword ? "text" : "password"}
             className="input pl-10 pr-10"
-            placeholder="Enter password"
+            placeholder="Enter your password"
             {...register("password", {
               required: "Password is required",
               minLength: {
@@ -139,40 +119,6 @@ export default function RegisterForm() {
         )}
       </div>
 
-      {/* ===== Confirm Password ===== */}
-      <div>
-        <label className="label">Confirm Password</label>
-        <div className="relative">
-          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-          <input
-            type={showConfirmPassword ? "text" : "password"}
-            className="input pl-10 pr-10"
-            placeholder="Confirm password"
-            {...register("password2", {
-              required: "Please confirm your password",
-              validate: (value) =>
-                value === password || "Passwords do not match",
-            })}
-          />
-          <button
-            type="button"
-            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition"
-          >
-            {showConfirmPassword ? (
-              <EyeOff className="w-5 h-5" />
-            ) : (
-              <Eye className="w-5 h-5" />
-            )}
-          </button>
-        </div>
-        {errors.password2 && (
-          <p className="text-sm text-red-500 mt-1">
-            {errors.password2.message}
-          </p>
-        )}
-      </div>
-
       {/* ===== Submit Button ===== */}
       <button
         type="submit"
@@ -182,10 +128,10 @@ export default function RegisterForm() {
         {isLoading ? (
           <span className="flex items-center gap-2">
             <span className="spinner w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            Registering...
+            Signing in...
           </span>
         ) : (
-          "Create Account"
+          "Sign In"
         )}
       </button>
     </form>

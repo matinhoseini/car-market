@@ -13,23 +13,61 @@ import {
   CarFront,
   Info,
   Settings,
+  Heart,
+  PlusCircle,
 } from "lucide-react";
 import DarkToggle from "./DarkToggle";
-import Image from "next/image";
+import { useRouter, usePathname } from "next/navigation";
 
 export default function Header() {
+  const router = useRouter();
+  const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
+  const [user, setUser] = useState(null);
   const userMenuRef = useRef(null);
 
-  // ===== کنترل اسکرول =====
+  // ===== Check login status =====
+  const checkAuth = () => {
+    const token = localStorage.getItem("access_token");
+    const userData = localStorage.getItem("user");
+    if (token && userData) {
+      try {
+        setUser(JSON.parse(userData));
+        setIsLoggedIn(true);
+      } catch {
+        setIsLoggedIn(false);
+        setUser(null);
+      }
+    } else {
+      setIsLoggedIn(false);
+      setUser(null);
+    }
+  };
+
+  // ===== Check on mount AND every time pathname changes =====
+  useEffect(() => {
+    checkAuth();
+  }, [pathname]);
+
+  // ===== Also listen for storage changes =====
+  useEffect(() => {
+    const handleStorageChange = () => {
+      checkAuth();
+    };
+    window.addEventListener("storage", handleStorageChange);
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+    };
+  }, []);
+
+  // ===== Control scroll =====
   useEffect(() => {
     const controlHeader = () => {
       const currentScrollY = window.scrollY;
-
       if (currentScrollY > lastScrollY && currentScrollY > 80) {
         setIsVisible(false);
       } else if (currentScrollY < lastScrollY) {
@@ -39,13 +77,10 @@ export default function Header() {
     };
 
     window.addEventListener("scroll", controlHeader, { passive: true });
-
-    return () => {
-      window.removeEventListener("scroll", controlHeader);
-    };
+    return () => window.removeEventListener("scroll", controlHeader);
   }, [lastScrollY]);
 
-  // ===== کلیک خارج از منو کاربر =====
+  // ===== Click outside user menu =====
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
@@ -56,7 +91,7 @@ export default function Header() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // ===== قفل اسکرول هنگام باز بودن منو =====
+  // ===== Lock scroll when menu is open =====
   useEffect(() => {
     if (isMenuOpen) {
       document.body.style.overflow = "hidden";
@@ -68,21 +103,41 @@ export default function Header() {
     };
   }, [isMenuOpen]);
 
-  const user = {
-    name: "John Doe",
-    email: "john@example.com",
-    avatar: null,
+  // ===== Logout handler =====
+  const handleLogout = () => {
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
+    localStorage.removeItem("user");
+    setIsLoggedIn(false);
+    setUser(null);
+    setIsUserMenuOpen(false);
+    router.push("/");
   };
 
+  // ===== Handle dashboard click with token check =====
+  const handleDashboardClick = (e) => {
+    const token = localStorage.getItem("access_token");
+    if (!token) {
+      e.preventDefault();
+      router.push("/auth/register");
+    }
+    setIsMenuOpen(false);
+  };
+
+  // ===== Nav items =====
   const navItems = [
     { href: "/vehicles", label: "Vehicles", icon: CarFront },
-    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/about", label: "About", icon: Info },
+  ];
+
+  const protectedNavItems = [
+    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/dashboard/add-vehicle", label: "Add Vehicle", icon: PlusCircle },
+    { href: "/dashboard/favorites", label: "Favorites", icon: Heart },
   ];
 
   return (
     <>
-      {/* ===== هدر با بالاترین z-index ===== */}
       <header
         className={`
           header py-0 h-14 md:h-16 lg:h-16
@@ -94,7 +149,7 @@ export default function Header() {
       >
         <div className="container-custom h-full">
           <div className="flex justify-between items-center h-full">
-            {/* لوگو */}
+            {/* ===== Logo ===== */}
             <Link
               href="/"
               className="flex items-center gap-1.5 md:gap-2 group flex-shrink-0"
@@ -105,7 +160,7 @@ export default function Header() {
               </span>
             </Link>
 
-            {/* منوی دسکتاپ */}
+            {/* ===== Desktop Navigation ===== */}
             <nav className="hidden lg:flex items-center gap-1">
               {navItems.map((item) => (
                 <Link
@@ -116,44 +171,58 @@ export default function Header() {
                   {item.label}
                 </Link>
               ))}
+
+              {/* ===== Dashboard - with token check ===== */}
+              <Link
+                href="/dashboard"
+                onClick={handleDashboardClick}
+                className="px-3 py-1.5 rounded-lg text-sm text-[rgb(var(--foreground))] hover:text-primary-500 hover:bg-[rgb(var(--muted))] transition-all duration-200 font-medium hover:scale-95"
+              >
+                Dashboard
+              </Link>
+
+              {/* ===== Protected nav items (only for logged in users) ===== */}
+              {isLoggedIn &&
+                protectedNavItems.slice(1).map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className="px-3 py-1.5 rounded-lg text-sm text-[rgb(var(--foreground))] hover:text-primary-500 hover:bg-[rgb(var(--muted))] transition-all duration-200 font-medium hover:scale-95"
+                  >
+                    {item.label}
+                  </Link>
+                ))}
             </nav>
 
-            {/* بخش راست */}
+            {/* ===== Right Side ===== */}
             <div className="flex items-center gap-1.5 md:gap-2 lg:gap-2">
               <DarkToggle />
 
-              {isLoggedIn ? (
+              {isLoggedIn && user ? (
                 <div className="relative" ref={userMenuRef}>
                   <button
                     onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                     className="flex items-center gap-1.5 md:gap-2 px-1.5 md:px-2 py-1 rounded-full hover:bg-[rgb(var(--muted))] transition-all duration-200 hover:scale-95"
                   >
-                    {user.avatar ? (
-                      <Image
-                        src={user.avatar}
-                        alt={user.name}
-                        width={28}
-                        height={28}
-                        className="rounded-full object-cover border-2 border-primary-500 w-7 h-7 md:w-8 md:h-8"
-                      />
-                    ) : (
-                      <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-gradient-to-r from-primary-500 to-accent-500 flex items-center justify-center text-white font-semibold text-xs md:text-sm">
-                        {user.name.charAt(0).toUpperCase()}
-                      </div>
-                    )}
+                    <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-gradient-to-r from-primary-500 to-accent-500 flex items-center justify-center text-white font-semibold text-xs md:text-sm">
+                      {user.username?.charAt(0).toUpperCase() || "U"}
+                    </div>
                     <span className="hidden sm:inline text-xs md:text-sm font-medium text-[rgb(var(--foreground))]">
-                      {user.name.split(" ")[0]}
+                      {user.username?.split(" ")[0] || "User"}
                     </span>
                   </button>
 
                   {isUserMenuOpen && (
                     <div className="absolute right-0 mt-2 w-48 bg-[rgb(var(--card))] rounded-xl shadow-xl border border-[rgb(var(--border))] py-2 z-[9999] animate-fade-in">
                       <div className="px-4 py-2 border-b border-[rgb(var(--border))]">
-                        <p className="font-semibold text-sm">{user.name}</p>
+                        <p className="font-semibold text-sm">
+                          {user.username || "User"}
+                        </p>
                         <p className="text-xs text-[rgb(var(--muted-foreground))]">
-                          {user.email}
+                          {user.email || ""}
                         </p>
                       </div>
+
                       <Link
                         href="/dashboard"
                         className="flex items-center gap-3 px-4 py-2 hover:bg-[rgb(var(--muted))] transition-all duration-200 hover:scale-95 text-sm"
@@ -162,17 +231,29 @@ export default function Header() {
                         <LayoutDashboard className="w-4 h-4" /> Dashboard
                       </Link>
                       <Link
+                        href="/dashboard/add-vehicle"
+                        className="flex items-center gap-3 px-4 py-2 hover:bg-[rgb(var(--muted))] transition-all duration-200 hover:scale-95 text-sm"
+                        onClick={() => setIsUserMenuOpen(false)}
+                      >
+                        <PlusCircle className="w-4 h-4" /> Add Vehicle
+                      </Link>
+                      <Link
+                        href="/dashboard/favorites"
+                        className="flex items-center gap-3 px-4 py-2 hover:bg-[rgb(var(--muted))] transition-all duration-200 hover:scale-95 text-sm"
+                        onClick={() => setIsUserMenuOpen(false)}
+                      >
+                        <Heart className="w-4 h-4" /> Favorites
+                      </Link>
+                      <Link
                         href="/dashboard/profile"
                         className="flex items-center gap-3 px-4 py-2 hover:bg-[rgb(var(--muted))] transition-all duration-200 hover:scale-95 text-sm"
                         onClick={() => setIsUserMenuOpen(false)}
                       >
                         <Settings className="w-4 h-4" /> Settings
                       </Link>
+
                       <button
-                        onClick={() => {
-                          setIsLoggedIn(false);
-                          setIsUserMenuOpen(false);
-                        }}
+                        onClick={handleLogout}
                         className="flex items-center gap-3 px-4 py-2 hover:bg-red-50 dark:hover:bg-red-950/50 transition-all duration-200 hover:scale-95 text-sm text-red-500 w-full"
                       >
                         <LogOut className="w-4 h-4" /> Sign Out
@@ -199,7 +280,7 @@ export default function Header() {
                 </div>
               )}
 
-              {/* دکمه همبرگر */}
+              {/* ===== Hamburger Menu ===== */}
               <button
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
                 className="lg:hidden p-1.5 md:p-2 rounded-lg hover:bg-[rgb(var(--muted))] transition-all duration-200 hover:scale-95 relative z-[9999]"
@@ -216,7 +297,7 @@ export default function Header() {
         </div>
       </header>
 
-      {/* ===== منوی موبایل و تبلت ===== */}
+      {/* ===== Mobile Menu ===== */}
       {isMenuOpen && (
         <>
           <div
@@ -224,7 +305,6 @@ export default function Header() {
             onClick={() => setIsMenuOpen(false)}
           />
           <div className="fixed top-0 right-0 h-full w-64 sm:w-72 bg-[rgb(var(--card))] shadow-2xl z-[9999] lg:hidden animate-slide-in-right">
-            {/* هدر منو */}
             <div className="flex justify-between items-center p-4 border-b border-[rgb(var(--border))] h-14 md:h-16">
               <span className="text-base sm:text-lg font-bold text-gradient">
                 Menu
@@ -232,21 +312,20 @@ export default function Header() {
               <button
                 onClick={() => setIsMenuOpen(false)}
                 className="p-2 rounded-lg hover:bg-[rgb(var(--muted))] transition-all duration-200 hover:scale-95"
-                aria-label="Close menu"
               >
                 <X className="w-5 h-5 sm:w-6 sm:h-6 text-[rgb(var(--foreground))]" />
               </button>
             </div>
 
-            {/* لینک‌های منو */}
             <nav className="p-4 space-y-1 text-[rgb(var(--foreground))]">
+              {/* Vehicles */}
               {navItems.map((item) => {
                 const Icon = item.icon;
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
-                    className="flex justify-between items-center gap-4 px-4 py-3 rounded-lg hover:bg-[rgb(var(--muted))] transition-all duration-200 hover:scale-95 font-medium"
+                    className="flex items-center gap-4 px-4 py-3 rounded-lg hover:bg-[rgb(var(--muted))] transition-all duration-200 hover:scale-95 font-medium"
                     onClick={() => setIsMenuOpen(false)}
                   >
                     <Icon className="w-5 h-5 text-primary-500 flex-shrink-0" />
@@ -255,40 +334,52 @@ export default function Header() {
                 );
               })}
 
+              {/* ===== Dashboard - with token check ===== */}
+              <Link
+                href="/dashboard"
+                onClick={handleDashboardClick}
+                className="flex items-center gap-4 px-4 py-3 rounded-lg hover:bg-[rgb(var(--muted))] transition-all duration-200 hover:scale-95 font-medium"
+              >
+                <LayoutDashboard className="w-5 h-5 text-primary-500 flex-shrink-0" />
+                <span>Dashboard</span>
+              </Link>
+
+              {/* ===== Protected nav items (only for logged in users) ===== */}
+              {isLoggedIn &&
+                protectedNavItems.slice(1).map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className="flex items-center gap-4 px-4 py-3 rounded-lg hover:bg-[rgb(var(--muted))] transition-all duration-200 hover:scale-95 font-medium"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      <Icon className="w-5 h-5 text-primary-500 flex-shrink-0" />
+                      <span>{item.label}</span>
+                    </Link>
+                  );
+                })}
+
               <div className="border-t border-[rgb(var(--border))] my-4 pt-4">
                 {isLoggedIn ? (
-                  <>
-                    <div className="flex items-center gap-3 px-4 py-3">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-r from-primary-500 to-accent-500 flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
-                        {user.name.charAt(0).toUpperCase()}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="font-semibold text-sm truncate">
-                          {user.name}
-                        </p>
-                        <p className="text-xs text-[rgb(var(--muted-foreground))] truncate">
-                          {user.email}
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => {
-                        setIsLoggedIn(false);
-                        setIsMenuOpen(false);
-                      }}
-                      className="flex items-center gap-4 px-4 py-3 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/50 transition-all duration-200 hover:scale-95 text-red-500 w-full"
-                    >
-                      <LogOut className="w-5 h-5 flex-shrink-0" />
-                      <span>Sign Out</span>
-                    </button>
-                  </>
+                  <button
+                    onClick={() => {
+                      handleLogout();
+                      setIsMenuOpen(false);
+                    }}
+                    className="flex items-center gap-4 px-4 py-3 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/50 transition-all duration-200 hover:scale-95 text-red-500 w-full"
+                  >
+                    <LogOut className="w-5 h-5 flex-shrink-0" />
+                    <span>Sign Out</span>
+                  </button>
                 ) : (
                   <div className="space-y-2">
                     <Link
                       href="/auth/login"
                       onClick={() => setIsMenuOpen(false)}
                     >
-                      <button className="btn-primary w-full text-sm py-2.5 transition-all duration-200 hover:scale-95">
+                      <button className="btn-primary w-full text-sm py-2.5">
                         Sign In
                       </button>
                     </Link>
@@ -296,7 +387,7 @@ export default function Header() {
                       href="/auth/register"
                       onClick={() => setIsMenuOpen(false)}
                     >
-                      <button className="btn-outline w-full text-sm py-2.5 transition-all duration-200 hover:scale-95">
+                      <button className="btn-outline w-full text-sm py-2.5">
                         Sign Up
                       </button>
                     </Link>
