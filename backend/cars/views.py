@@ -93,3 +93,27 @@ def upload_car_image(request, car_id):
         return Response(serializer.data, status=201)
 
     return Response(serializer.errors, status=400)
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_car_image(request, image_id):
+
+    try:
+        car_image = CarImage.objects.get(id=image_id)
+
+    except CarImage.DoesNotExist:
+        return Response(
+            {"error": "Image not found"},
+            status=404
+        )
+
+    if car_image.car.owner != request.user:
+        return Response(
+            {"error": "You are not owner of this car"},
+            status=403
+        )
+
+    car_image.image.delete(save=False)
+
+    car_image.delete()
+
+    return Response(status=204)

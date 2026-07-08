@@ -5,6 +5,7 @@ from .views import (
     CarDetailView,
     CarManageView,
     upload_car_image,
+    delete_car_image,
 )
 
 urlpatterns = [
@@ -14,4 +15,7 @@ urlpatterns = [
     path('manage/<int:pk>/', CarManageView.as_view()),
 
     path('<int:car_id>/upload-image/', upload_car_image),
+    path(
+    'image/<int:image_id>/',
+    delete_car_image,),
 ]
