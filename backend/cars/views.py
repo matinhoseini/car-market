@@ -1,3 +1,4 @@
+from .filters import CarFilter
 from .models import Car, CarImage
 from .serializers import CarSerializer, CarImageSerializer
 
@@ -31,10 +32,20 @@ def create_car(request):
     responses=CarSerializer(many=True),
 )
 @api_view(['GET'])
+@api_view(['GET'])
 def car_list(request):
+
     cars = Car.objects.all()
 
-    serializer = CarSerializer(cars, many=True)
+    car_filter = CarFilter(
+        request.GET,
+        queryset=cars
+    )
+
+    serializer = CarSerializer(
+        car_filter.qs,
+        many=True
+    )
 
     return Response(serializer.data)
 

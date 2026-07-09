@@ -21,3 +21,4 @@ backend/media/
 
 # Node
 frontend/node_modules/
+db_backup.sqlite3
