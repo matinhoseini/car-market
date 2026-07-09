@@ -1,8 +1,13 @@
+from django.db.models import Q
+
 from .filters import CarFilter
 from .models import Car, CarImage
 from .serializers import CarSerializer, CarImageSerializer
 
-from rest_framework.generics import RetrieveAPIView, RetrieveUpdateDestroyAPIView
+from rest_framework.generics import (
+    RetrieveAPIView,
+    RetrieveUpdateDestroyAPIView
+)
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -19,6 +24,7 @@ from .permissions import IsOwner
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def create_car(request):
+
     serializer = CarSerializer(data=request.data)
 
     if serializer.is_valid():
@@ -32,18 +38,36 @@ def create_car(request):
     responses=CarSerializer(many=True),
 )
 @api_view(['GET'])
-@api_view(['GET'])
 def car_list(request):
 
     cars = Car.objects.all()
+
+    search = request.GET.get("search")
+
+    if search:
+        cars = cars.filter(
+            Q(brand__icontains=search) |
+            Q(model__icontains=search) |
+            Q(city__icontains=search)
+        )
+
 
     car_filter = CarFilter(
         request.GET,
         queryset=cars
     )
 
+    cars = car_filter.qs
+
+
+    ordering = request.GET.get("ordering")
+
+    if ordering:
+        cars = cars.order_by(ordering)
+
+
     serializer = CarSerializer(
-        car_filter.qs,
+        cars,
         many=True
     )
 
@@ -51,11 +75,13 @@ def car_list(request):
 
 
 class CarDetailView(RetrieveAPIView):
+
     queryset = Car.objects.all()
     serializer_class = CarSerializer
 
 
 class CarManageView(RetrieveUpdateDestroyAPIView):
+
     queryset = Car.objects.all()
     serializer_class = CarSerializer
     permission_classes = [IsOwner]
@@ -71,9 +97,7 @@ class CarManageView(RetrieveUpdateDestroyAPIView):
                     'format': 'binary'
                 }
             },
-            'required': [
-                'image'
-            ]
+            'required': ['image']
         }
     },
     responses=CarImageSerializer,
@@ -104,6 +128,11 @@ def upload_car_image(request, car_id):
         return Response(serializer.data, status=201)
 
     return Response(serializer.errors, status=400)
+
+
+@extend_schema(
+    responses={204: None}
+)
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
 def delete_car_image(request, image_id):

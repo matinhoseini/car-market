@@ -5,23 +5,32 @@ from .models import Car
 
 class CarFilter(django_filters.FilterSet):
 
-    min_price = django_filters.NumberFilter(
+    price_min = django_filters.NumberFilter(
         field_name='price',
         lookup_expr='gte'
     )
 
-    max_price = django_filters.NumberFilter(
+    price_max = django_filters.NumberFilter(
         field_name='price',
+        lookup_expr='lte'
+    )
+
+    year_min = django_filters.NumberFilter(
+        field_name='year',
+        lookup_expr='gte'
+    )
+
+    year_max = django_filters.NumberFilter(
+        field_name='year',
         lookup_expr='lte'
     )
 
     class Meta:
         model = Car
 
-        fields = {
-            'brand': ['exact'],
-            'city': ['exact'],
-            'fuel_type': ['exact'],
-            'gearbox': ['exact'],
-            'year': ['exact'],
-        }
+        fields = [
+            'brand',
+            'city',
+            'fuel_type',
+            'gearbox',
+        ]
