@@ -11,6 +11,7 @@ from rest_framework.generics import (
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.pagination import PageNumberPagination
 
 from drf_spectacular.utils import extend_schema
 
@@ -66,12 +67,23 @@ def car_list(request):
         cars = cars.order_by(ordering)
 
 
-    serializer = CarSerializer(
+    paginator = PageNumberPagination()
+    paginator.page_size = 2
+
+    paginated_cars = paginator.paginate_queryset(
         cars,
+        request
+    )
+
+
+    serializer = CarSerializer(
+        paginated_cars,
         many=True
     )
 
-    return Response(serializer.data)
+    return paginator.get_paginated_response(
+        serializer.data
+    )
 
 
 class CarDetailView(RetrieveAPIView):
