@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { authService } from "../../services/auth.service";
 import toast from "react-hot-toast";
+import Link from "next/link";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -204,7 +205,7 @@ export default function DashboardPage() {
         <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-4">
           <button className="btn-primary w-full">
             <Car className="w-4 h-4 mr-2" />
-            Add Vehicle
+            <Link href="/dashboard/add-vehicle">Add Vehicle</Link>
           </button>
           <button className="btn-outline w-full">
             <Settings className="w-4 h-4 mr-2" />

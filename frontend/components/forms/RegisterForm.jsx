@@ -34,7 +34,7 @@ export default function RegisterForm() {
         duration: 4000,
       });
 
-      // router.push("/auth/login");
+      router.push("/auth/login");
     } catch (error) {
       console.error("❌ Registration error:", error);
 

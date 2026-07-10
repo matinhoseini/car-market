@@ -13,7 +13,7 @@ export default function Vehicles() {
       try {
         setLoading(true);
         const data = await vehiclesService.getAllCars();
-        setCars(data);
+        setCars(data.results || []); // ✅ اینجا اصلاح شد
         console.log("✅ Cars loaded:", data);
       } catch (err) {
         console.error("❌ Error fetching cars:", err);
