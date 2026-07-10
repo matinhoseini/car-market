@@ -21,11 +21,14 @@ export default function AddVehicle() {
 
   // ===== Handle image selection =====
   const handleImageChange = (e) => {
+    console.log(e.target.files);
     const files = Array.from(e.target.files);
+    console.log(files);
     setImages((prev) => [...prev, ...files]);
 
     // Create preview URLs
     const previews = files.map((file) => URL.createObjectURL(file));
+    console.log(previews);
     setImagePreviews((prev) => [...prev, ...previews]);
   };
 
