@@ -27,6 +27,8 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [myCars, setMyCars] = useState([]);
   const [carsLoading, setCarsLoading] = useState(true);
+  const [favoritesCount, setFavoritesCount] = useState(0);
+  const [favoritesLoading, setFavoritesLoading] = useState(true);
 
   useEffect(() => {
     const token = localStorage.getItem("access_token");
@@ -66,6 +68,32 @@ export default function DashboardPage() {
 
     if (user) {
       fetchMyCars();
+    }
+  }, [user]);
+
+  // ===== Fetch favorites count =====
+  useEffect(() => {
+    const fetchFavoritesCount = async () => {
+      try {
+        const data = await vehiclesService.getFavoritesCount();
+        setFavoritesCount(data.count || 0);
+      } catch (error) {
+        console.error("Error fetching favorites count:", error);
+        // اگر API count نداشت، از لیست کامل استفاده کن
+        try {
+          const favorites = await vehiclesService.getFavorites();
+          setFavoritesCount(Array.isArray(favorites) ? favorites.length : 0);
+        } catch (err) {
+          console.error("Error fetching favorites list:", err);
+          setFavoritesCount(0);
+        }
+      } finally {
+        setFavoritesLoading(false);
+      }
+    };
+
+    if (user) {
+      fetchFavoritesCount();
     }
   }, [user]);
 
@@ -148,8 +176,14 @@ export default function DashboardPage() {
                   <p className="text-sm text-[rgb(var(--muted-foreground))]">
                     Favorites
                   </p>
-                  <p className="text-2xl font-bold">0</p>
+                  <p className="text-2xl font-bold">
+                    {favoritesLoading ? "..." : favoritesCount}
+                  </p>
                 </div>
+              </div>
+              <div className="mt-2 text-xs text-[rgb(var(--muted-foreground))] flex items-center gap-1">
+                <span>View all favorites</span>
+                <ArrowRight className="w-3 h-3" />
               </div>
             </div>
           </Link>

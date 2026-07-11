@@ -4,11 +4,27 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Heart, MapPin, Calendar, Fuel, Gauge, Users } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { vehiclesService } from "@/services/vehicles.service";
 
 export default function VehicleCard({ car }) {
-  const [isLiked, setIsLiked] = useState(false);
+  const [isLiked, setIsLiked] = useState(car.is_favorite || false);
+  const [isLoading, setIsLoading] = useState(false);
   const [imgError, setImgError] = useState(false);
+  const [user, setUser] = useState(null);
+
+  // ===== Check if user is logged in =====
+  useEffect(() => {
+    const token = localStorage.getItem("access_token");
+    if (token) {
+      setUser({ id: 1 });
+    }
+  }, []);
+
+  // ===== Update isLiked when car prop changes =====
+  useEffect(() => {
+    setIsLiked(car.is_favorite || false);
+  }, [car.is_favorite]);
 
   // ===== Get image URL with full path =====
   const getImageUrl = () => {
@@ -31,6 +47,50 @@ export default function VehicleCard({ car }) {
 
   const formatMileage = (mileage) => {
     return new Intl.NumberFormat("en-US").format(mileage);
+  };
+
+  // ===== Handle favorite toggle =====
+  const handleFavoriteToggle = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!user) {
+      alert("Please login to add favorites");
+      return;
+    }
+
+    if (isLoading) return;
+
+    // Optimistic update
+    const previousState = isLiked;
+    setIsLiked(!isLiked);
+    setIsLoading(true);
+
+    try {
+      if (isLiked) {
+        await vehiclesService.removeFavorite(car.id);
+        console.log("Favorite removed successfully");
+      } else {
+        await vehiclesService.addFavorite(car.id);
+        console.log("Favorite added successfully");
+      }
+    } catch (error) {
+      // Revert on error
+      setIsLiked(previousState);
+
+      console.error("Error toggling favorite:", error);
+      console.error("Error response:", error.response);
+      console.error("Error message:", error.message);
+
+      const errorMessage =
+        error.response?.data?.message ||
+        error.response?.data?.detail ||
+        error.message ||
+        "Failed to update favorites. Please try again.";
+      alert(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -68,18 +128,27 @@ export default function VehicleCard({ car }) {
             )}
           </div>
 
+          {/* ===== Owner Badge ===== */}
+          <div className="absolute bottom-3 left-3 z-10">
+            <span className="px-3 py-1 bg-black/60 backdrop-blur-sm text-white text-xs rounded-full">
+              👤 {car.owner_username || "Unknown"}
+            </span>
+          </div>
+
           {/* ===== Favorite Button ===== */}
           <button
-            onClick={(e) => {
-              e.preventDefault();
-              setIsLiked(!isLiked);
-            }}
-            className="absolute top-3 right-3 p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-md hover:scale-110 transition-transform z-10"
+            onClick={handleFavoriteToggle}
+            disabled={isLoading}
+            className={`absolute top-3 right-3 p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-md hover:scale-110 transition-transform z-10 ${
+              isLoading ? "opacity-50 cursor-not-allowed" : ""
+            }`}
           >
             <Heart
-              className={`w-5 h-5 ${
-                isLiked ? "fill-red-500 text-red-500" : "text-gray-600"
-              } transition-colors`}
+              className={`w-5 h-5 transition-all ${
+                isLiked
+                  ? "fill-red-500 text-red-500 animate-pulse"
+                  : "text-gray-600 hover:text-red-500"
+              } ${isLoading ? "animate-spin" : ""}`}
             />
           </button>
         </div>

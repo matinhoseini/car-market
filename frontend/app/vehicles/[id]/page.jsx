@@ -18,6 +18,7 @@ import {
   Share2,
   Car,
   Clock,
+  User,
 } from "lucide-react";
 import { vehiclesService } from "../../../services/vehicles.service";
 import toast from "react-hot-toast";
@@ -31,6 +32,15 @@ export default function VehicleDetailPage() {
   const [loading, setLoading] = useState(true);
   const [isLiked, setIsLiked] = useState(false);
   const [activeImage, setActiveImage] = useState(0);
+  const [user, setUser] = useState(null);
+
+  // ===== Check if user is logged in =====
+  useEffect(() => {
+    const token = localStorage.getItem("access_token");
+    if (token) {
+      setUser({ id: 1 });
+    }
+  }, []);
 
   // ===== Fetch car details =====
   useEffect(() => {
@@ -38,7 +48,7 @@ export default function VehicleDetailPage() {
       try {
         const data = await vehiclesService.getCarById(id);
         setCar(data);
-        // Set first image as active
+        setIsLiked(data.is_favorite || false);
         setActiveImage(0);
       } catch (error) {
         console.error("Error fetching car:", error);
@@ -53,6 +63,30 @@ export default function VehicleDetailPage() {
       fetchCar();
     }
   }, [id, router]);
+
+  // ===== Handle favorite toggle =====
+  const handleFavoriteToggle = async () => {
+    if (!user) {
+      toast.error("Please login to add favorites");
+      router.push("/auth/login");
+      return;
+    }
+
+    try {
+      if (isLiked) {
+        await vehiclesService.removeFavorite(car.id);
+        setIsLiked(false);
+        toast.success("Removed from favorites");
+      } else {
+        await vehiclesService.addFavorite(car.id);
+        setIsLiked(true);
+        toast.success("Added to favorites");
+      }
+    } catch (error) {
+      console.error("Error toggling favorite:", error);
+      toast.error("Failed to update favorites");
+    }
+  };
 
   // ===== Format helpers =====
   const formatPrice = (price) => {
@@ -69,6 +103,26 @@ export default function VehicleDetailPage() {
       return `http://localhost:8000${imagePath}`;
     }
     return imagePath;
+  };
+
+  // ===== Get owner display name =====
+  const getOwnerName = () => {
+    if (car.owner_username) {
+      return car.owner_username;
+    }
+    if (car.owner_id) {
+      return `User #${car.owner_id}`;
+    }
+    if (car.seller_name) {
+      return car.seller_name;
+    }
+    return "Unknown Seller";
+  };
+
+  // ===== Get owner initial =====
+  const getOwnerInitial = () => {
+    const name = getOwnerName();
+    return name.charAt(0).toUpperCase();
   };
 
   // ===== Loading state =====
@@ -97,6 +151,9 @@ export default function VehicleDetailPage() {
 
   // ===== Get all images =====
   const images = car.images || [];
+
+  // ===== Check if current user is the owner =====
+  const isOwner = user && car.owner_id === user.id;
 
   return (
     <div className="min-h-[calc(100vh-80px)] bg-[rgb(var(--background))] py-8">
@@ -128,6 +185,19 @@ export default function VehicleDetailPage() {
                   🚗
                 </div>
               )}
+
+              {/* ===== Owner Badge on Image ===== */}
+              <div className="absolute bottom-4 left-4 z-10">
+                <div className="flex items-center gap-2 px-3 py-2 bg-black/60 backdrop-blur-sm rounded-lg text-white">
+                  <User className="w-4 h-4" />
+                  <span className="text-sm font-medium">{getOwnerName()}</span>
+                  {isOwner && (
+                    <span className="ml-1 text-xs bg-primary-500 px-2 py-0.5 rounded-full">
+                      You
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* Thumbnail Images */}
@@ -159,11 +229,27 @@ export default function VehicleDetailPage() {
           <div>
             {/* Title & Price */}
             <div className="flex justify-between items-start gap-4">
-              <h1 className="text-2xl md:text-3xl font-bold font-heading">
-                {car.title || `${car.brand} ${car.model}`}
-              </h1>
+              <div>
+                <h1 className="text-2xl md:text-3xl font-bold font-heading">
+                  {car.title || `${car.brand} ${car.model}`}
+                </h1>
+                {/* Owner name under title */}
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-sm text-[rgb(var(--muted-foreground))]">
+                    Posted by
+                  </span>
+                  <span className="text-sm font-medium text-primary-500">
+                    {getOwnerName()}
+                  </span>
+                  {isOwner && (
+                    <span className="text-xs bg-primary-500 text-white px-2 py-0.5 rounded-full">
+                      Your ad
+                    </span>
+                  )}
+                </div>
+              </div>
               <button
-                onClick={() => setIsLiked(!isLiked)}
+                onClick={handleFavoriteToggle}
                 className="p-2 rounded-full hover:bg-[rgb(var(--muted))] transition"
               >
                 <Heart
@@ -245,21 +331,56 @@ export default function VehicleDetailPage() {
               </button>
             </div>
 
-            {/* Seller Info */}
+            {/* Seller Info Card */}
             <div className="mt-6 p-4 bg-[rgb(var(--muted))] rounded-xl">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-r from-primary-500 to-accent-500 flex items-center justify-center text-white font-bold">
-                  {car.seller_name?.charAt(0).toUpperCase() || "U"}
+                <div className="w-12 h-12 rounded-full bg-gradient-to-r from-primary-500 to-accent-500 flex items-center justify-center text-white font-bold text-lg">
+                  {getOwnerInitial()}
                 </div>
-                <div>
-                  <p className="font-semibold">
-                    {car.seller_name || "Unknown Seller"}
+                <div className="flex-1">
+                  <p className="font-semibold flex items-center gap-2">
+                    {getOwnerName()}
+                    {isOwner && (
+                      <span className="text-xs bg-primary-500 text-white px-2 py-0.5 rounded-full">
+                        You
+                      </span>
+                    )}
                   </p>
                   <p className="text-sm text-[rgb(var(--muted-foreground))]">
-                    <Clock className="w-3 h-3 inline mr-1" />
-                    Member since 2026
+                    <User className="w-3 h-3 inline mr-1" />
+                    {isOwner ? "This is your ad" : "Car seller"}
                   </p>
                 </div>
+                {!isOwner && (
+                  <button className="btn-primary btn-sm">
+                    <Mail className="w-4 h-4 mr-1" />
+                    Contact
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* ===== Owner Info Section ===== */}
+            <div className="mt-4 p-4 border border-[rgb(var(--border))] rounded-xl">
+              <h4 className="text-sm font-semibold mb-2">📋 Ad Information</h4>
+              <div className="space-y-1 text-sm text-[rgb(var(--muted-foreground))]">
+                <p>
+                  <span className="font-medium">Ad ID:</span> #{car.id}
+                </p>
+                <p>
+                  <span className="font-medium">Owner ID:</span>{" "}
+                  {car.owner_id || "N/A"}
+                </p>
+                <p>
+                  <span className="font-medium">Status:</span>{" "}
+                  {car.status === "active" ? (
+                    <span className="text-green-500">Active</span>
+                  ) : car.status === "sold" ? (
+                    <span className="text-red-500">Sold</span>
+                  ) : (
+                    <span className="text-yellow-500">Pending</span>
+                  )}
+                </p>
               </div>
             </div>
           </div>
