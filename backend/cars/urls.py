@@ -8,6 +8,7 @@ from .views import (
     delete_car_image,
     AddFavoriteView,
     RemoveFavoriteView,
+    FavoriteListView,
 )
 
 urlpatterns = [
@@ -36,4 +37,9 @@ urlpatterns = [
         '<int:car_id>/favorite/remove/',
         RemoveFavoriteView.as_view(),
     ),
+
+    path(
+    "favorites/",
+    FavoriteListView.as_view(),
+),
 ]

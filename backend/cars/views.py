@@ -82,8 +82,9 @@ def car_list(request):
 
 
     serializer = CarSerializer(
-        paginated_cars,
-        many=True
+    cars,
+    many=True,
+    context={"request": request}
     )
 
     return paginator.get_paginated_response(
@@ -96,6 +97,10 @@ class CarDetailView(RetrieveAPIView):
     queryset = Car.objects.all()
     serializer_class = CarSerializer
 
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context["request"] = self.request
+        return context
 
 class CarManageView(RetrieveUpdateDestroyAPIView):
 
@@ -230,3 +235,19 @@ class RemoveFavoriteView(APIView):
             {"message": "Removed from favorites"},
             status=status.HTTP_200_OK
         )
+class FavoriteListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+
+        favorites = Favorite.objects.filter(
+            user=request.user
+        ).select_related("car")
+
+        serializer = FavoriteSerializer(
+            favorites,
+            many=True,
+            context={"request": request}
+        )
+
+        return Response(serializer.data)

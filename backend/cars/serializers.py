@@ -4,22 +4,20 @@ from .models import Car, CarImage, Favorite
 
 class CarImageSerializer(serializers.ModelSerializer):
 
-    image = serializers.ImageField(
-        required=True
-    )
+    image = serializers.ImageField(required=True)
 
     class Meta:
         model = CarImage
 
         fields = [
-            'id',
-            'image',
-            'uploaded_at',
+            "id",
+            "image",
+            "uploaded_at",
         ]
 
         read_only_fields = [
-            'id',
-            'uploaded_at',
+            "id",
+            "uploaded_at",
         ]
 
 
@@ -32,33 +30,35 @@ class CarSerializer(serializers.ModelSerializer):
 
     owner_id = serializers.SerializerMethodField()
     owner_username = serializers.SerializerMethodField()
+    is_favorite = serializers.SerializerMethodField()
 
     class Meta:
         model = Car
 
         fields = [
-            'id',
-            'brand',
-            'model',
-            'year',
-            'price',
-            'description',
-            'mileage',
-            'city',
-            'fuel_type',
-            'gearbox',
-            'owner_id',
-            'owner_username',
-            'images',
-            'created_at',
+            "id",
+            "brand",
+            "model",
+            "year",
+            "price",
+            "description",
+            "mileage",
+            "city",
+            "fuel_type",
+            "gearbox",
+            "owner_id",
+            "owner_username",
+            "is_favorite",
+            "images",
+            "created_at",
         ]
 
         read_only_fields = [
-            'id',
-            'created_at',
-            'owner_id',
-            'owner_username',
-            'images',
+            "id",
+            "created_at",
+            "owner_id",
+            "owner_username",
+            "images",
         ]
 
     def get_owner_id(self, obj):
@@ -66,7 +66,23 @@ class CarSerializer(serializers.ModelSerializer):
 
     def get_owner_username(self, obj):
         return obj.owner.username
-    
+
+    def get_is_favorite(self, obj):
+
+        request = self.context.get("request")
+
+        if request is None:
+            return False
+
+        if not request.user.is_authenticated:
+            return False
+
+        return Favorite.objects.filter(
+            user=request.user,
+            car=obj
+        ).exists()
+
+
 class FavoriteSerializer(serializers.ModelSerializer):
 
     car = CarSerializer(read_only=True)
@@ -79,3 +95,10 @@ class FavoriteSerializer(serializers.ModelSerializer):
             "car",
             "created_at",
         ]
+        def get_fields(self):
+            fields = super().get_fields()
+            fields["car"] = CarSerializer(
+                read_only=True,
+                context=self.context
+    )
+            return fields
