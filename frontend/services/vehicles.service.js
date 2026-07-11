@@ -7,7 +7,10 @@ export const vehiclesService = {
   // لیست تمام ماشین‌ها با فیلترهای مختلف
   // ============================================
   getAllCars: async (filters = {}) => {
-    const response = await api.get("/cars/list/", { params: filters });
+    // page_size: 100 برای گرفتن همه ماشین‌ها
+    const response = await api.get("/cars/list/", {
+      params: { ...filters, page_size: 100 },
+    });
     return response.data;
   },
 
