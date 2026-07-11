@@ -4,7 +4,8 @@ import { api } from "./apiClient";
 export const vehiclesService = {
   // ============================================
   // GET: /api/cars/list/
-  // Get all cars with various filters
+  // Get all cars with filters
+  // Returns: { results: [...], owner_id, owner_username, is_favorite }
   // ============================================
   getAllCars: async (filters = {}) => {
     const response = await api.get("/cars/list/", {
@@ -16,6 +17,7 @@ export const vehiclesService = {
   // ============================================
   // GET: /api/cars/{id}/
   // Get car details by ID
+  // Returns: { ..., owner_id, owner_username, is_favorite }
   // ============================================
   getCarById: async (id) => {
     const response = await api.get(`/cars/${id}/`);
@@ -24,7 +26,7 @@ export const vehiclesService = {
 
   // ============================================
   // POST: /api/cars/
-  // Create a new car listing (requires login)
+  // Create a new car listing
   // ============================================
   createCar: async (data) => {
     const response = await api.post("/cars/", data, {
@@ -37,7 +39,7 @@ export const vehiclesService = {
 
   // ============================================
   // POST: /api/cars/{car_id}/favorite/
-  // Add car to favorites (requires login)
+  // Add car to favorites (requires JWT)
   // ============================================
   addFavorite: async (carId) => {
     const response = await api.post(`/cars/${carId}/favorite/`);
@@ -46,7 +48,7 @@ export const vehiclesService = {
 
   // ============================================
   // POST: /api/cars/{car_id}/favorite/remove/
-  // Remove car from favorites (requires login)
+  // Remove car from favorites (requires JWT)
   // ============================================
   removeFavorite: async (carId) => {
     const response = await api.post(`/cars/${carId}/favorite/remove/`);
@@ -55,16 +57,39 @@ export const vehiclesService = {
 
   // ============================================
   // GET: /api/cars/favorites/
-  // Get all favorite cars for current user (requires login)
+  // Get all favorite cars (requires JWT)
+  // Returns: [{ id, car: {...}, created_at }]
   // ============================================
   getFavorites: async () => {
     const response = await api.get("/cars/favorites/");
+
+    // Transform response: extract car data from nested structure
+    if (
+      Array.isArray(response.data) &&
+      response.data.length > 0 &&
+      response.data[0].car
+    ) {
+      return response.data.map((item) => ({
+        ...item.car,
+        favorite_id: item.id,
+        favorited_at: item.created_at,
+      }));
+    }
+
+    if (Array.isArray(response.data)) {
+      return response.data;
+    }
+
+    if (response.data.results) {
+      return response.data.results;
+    }
+
     return response.data;
   },
 
   // ============================================
   // PUT: /api/cars/{id}/
-  // Update car listing (requires login)
+  // Update car listing
   // ============================================
   updateCar: async (id, data) => {
     const response = await api.put(`/cars/${id}/`, data, {
@@ -77,7 +102,7 @@ export const vehiclesService = {
 
   // ============================================
   // DELETE: /api/cars/{id}/
-  // Delete car listing (requires login)
+  // Delete car listing
   // ============================================
   deleteCar: async (id) => {
     const response = await api.delete(`/cars/${id}/`);
@@ -86,7 +111,7 @@ export const vehiclesService = {
 
   // ============================================
   // POST: /api/cars/{id}/upload-image/
-  // Upload image to car listing (multipart/form-data)
+  // Upload image to car listing
   // ============================================
   uploadImage: async (carId, formData) => {
     const response = await api.post(`/cars/${carId}/upload-image/`, formData, {
@@ -99,50 +124,10 @@ export const vehiclesService = {
 
   // ============================================
   // DELETE: /api/cars/{id}/images/{image_id}/
-  // Delete specific image from car listing (requires login)
+  // Delete specific image
   // ============================================
   deleteImage: async (carId, imageId) => {
     const response = await api.delete(`/cars/${carId}/images/${imageId}/`);
-    return response.data;
-  },
-
-  // ============================================
-  // GET: /api/cars/search/
-  // Search cars by query string
-  // ============================================
-  searchCars: async (query, filters = {}) => {
-    const response = await api.get("/cars/search/", {
-      params: { q: query, ...filters },
-    });
-    return response.data;
-  },
-
-  // ============================================
-  // GET: /api/cars/filter-options/
-  // Get all available filter options
-  // ============================================
-  getFilterOptions: async () => {
-    const response = await api.get("/cars/filter-options/");
-    return response.data;
-  },
-
-  // ============================================
-  // POST: /api/cars/{id}/views/
-  // Track car view (increments view count)
-  // ============================================
-  trackCarView: async (carId) => {
-    const response = await api.post(`/cars/${carId}/views/`);
-    return response.data;
-  },
-
-  // ============================================
-  // GET: /api/cars/popular/
-  // Get popular cars (most viewed/favorited)
-  // ============================================
-  getPopularCars: async (limit = 10) => {
-    const response = await api.get("/cars/popular/", {
-      params: { limit },
-    });
     return response.data;
   },
 };

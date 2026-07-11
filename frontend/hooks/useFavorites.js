@@ -7,14 +7,22 @@ export function useFavorites(carId, initialIsFavorite = false) {
   const [isLiked, setIsLiked] = useState(initialIsFavorite);
   const [isLoading, setIsLoading] = useState(false);
   const [user, setUser] = useState(null);
+  const [isMounted, setIsMounted] = useState(false);
 
-  // ===== Check if user is logged in =====
+  // ===== Check if component is mounted (client-side only) =====
   useEffect(() => {
-    const token = localStorage.getItem("access_token");
-    if (token) {
-      setUser({ id: 1 });
-    }
+    setIsMounted(true);
   }, []);
+
+  // ===== Check if user is logged in (only on client) =====
+  useEffect(() => {
+    if (isMounted) {
+      const token = localStorage.getItem("access_token");
+      if (token) {
+        setUser({ id: 1 });
+      }
+    }
+  }, [isMounted]);
 
   // ===== Sync with initial value when it changes =====
   useEffect(() => {
@@ -49,11 +57,18 @@ export function useFavorites(carId, initialIsFavorite = false) {
 
       console.error("Error toggling favorite:", error);
 
-      const errorMessage =
-        error.response?.data?.message ||
-        error.response?.data?.detail ||
-        error.message ||
-        "Failed to update favorites. Please try again.";
+      let errorMessage = "Failed to update favorites. Please try again.";
+
+      if (error.response) {
+        if (error.response.status === 404) {
+          errorMessage = "API endpoint not found.";
+        } else if (error.response.status === 401) {
+          errorMessage = "Please login again.";
+          localStorage.removeItem("access_token");
+        } else if (error.response.data?.detail) {
+          errorMessage = error.response.data.detail;
+        }
+      }
 
       toast.error(errorMessage);
     } finally {

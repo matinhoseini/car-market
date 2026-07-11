@@ -16,11 +16,11 @@ import {
   Phone,
   Mail,
   Share2,
-  Car,
   Clock,
   User,
 } from "lucide-react";
 import { vehiclesService } from "../../../services/vehicles.service";
+import { useFavorites } from "../../../hooks/useFavorites";
 import toast from "react-hot-toast";
 
 export default function VehicleDetailPage() {
@@ -30,7 +30,6 @@ export default function VehicleDetailPage() {
 
   const [car, setCar] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [isLiked, setIsLiked] = useState(false);
   const [activeImage, setActiveImage] = useState(0);
   const [user, setUser] = useState(null);
 
@@ -48,7 +47,6 @@ export default function VehicleDetailPage() {
       try {
         const data = await vehiclesService.getCarById(id);
         setCar(data);
-        setIsLiked(data.is_favorite || false);
         setActiveImage(0);
       } catch (error) {
         console.error("Error fetching car:", error);
@@ -64,29 +62,11 @@ export default function VehicleDetailPage() {
     }
   }, [id, router]);
 
-  // ===== Handle favorite toggle =====
-  const handleFavoriteToggle = async () => {
-    if (!user) {
-      toast.error("Please login to add favorites");
-      router.push("/auth/login");
-      return;
-    }
-
-    try {
-      if (isLiked) {
-        await vehiclesService.removeFavorite(car.id);
-        setIsLiked(false);
-        toast.success("Removed from favorites");
-      } else {
-        await vehiclesService.addFavorite(car.id);
-        setIsLiked(true);
-        toast.success("Added to favorites");
-      }
-    } catch (error) {
-      console.error("Error toggling favorite:", error);
-      toast.error("Failed to update favorites");
-    }
-  };
+  // ===== Use favorites hook =====
+  const { isLiked, isLoading, toggleFavorite } = useFavorites(
+    car?.id,
+    car?.is_favorite || false,
+  );
 
   // ===== Format helpers =====
   const formatPrice = (price) => {
@@ -105,27 +85,23 @@ export default function VehicleDetailPage() {
     return imagePath;
   };
 
-  // ===== Get owner display name =====
   const getOwnerName = () => {
-    if (car.owner_username) {
+    if (car?.owner_username) {
       return car.owner_username;
     }
-    if (car.owner_id) {
+    if (car?.owner_id) {
       return `User #${car.owner_id}`;
-    }
-    if (car.seller_name) {
-      return car.seller_name;
     }
     return "Unknown Seller";
   };
 
-  // ===== Get owner initial =====
   const getOwnerInitial = () => {
     const name = getOwnerName();
     return name.charAt(0).toUpperCase();
   };
 
-  // ===== Loading state =====
+  const isOwner = user && car?.owner_id === user.id;
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-[calc(100vh-80px)]">
@@ -134,7 +110,6 @@ export default function VehicleDetailPage() {
     );
   }
 
-  // ===== If no car found =====
   if (!car) {
     return (
       <div className="flex justify-center items-center min-h-[calc(100vh-80px)]">
@@ -149,11 +124,7 @@ export default function VehicleDetailPage() {
     );
   }
 
-  // ===== Get all images =====
   const images = car.images || [];
-
-  // ===== Check if current user is the owner =====
-  const isOwner = user && car.owner_id === user.id;
 
   return (
     <div className="min-h-[calc(100vh-80px)] bg-[rgb(var(--background))] py-8">
@@ -170,7 +141,6 @@ export default function VehicleDetailPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* ===== Left Column: Images ===== */}
           <div>
-            {/* Main Image */}
             <div className="relative w-full h-80 md:h-96 bg-gray-100 rounded-xl overflow-hidden">
               {images.length > 0 ? (
                 <Image
@@ -186,7 +156,7 @@ export default function VehicleDetailPage() {
                 </div>
               )}
 
-              {/* ===== Owner Badge on Image ===== */}
+              {/* ===== Owner Badge ===== */}
               <div className="absolute bottom-4 left-4 z-10">
                 <div className="flex items-center gap-2 px-3 py-2 bg-black/60 backdrop-blur-sm rounded-lg text-white">
                   <User className="w-4 h-4" />
@@ -198,9 +168,25 @@ export default function VehicleDetailPage() {
                   )}
                 </div>
               </div>
+
+              {/* ===== Favorite Button ===== */}
+              <button
+                onClick={toggleFavorite}
+                disabled={isLoading}
+                className={`absolute top-4 right-4 p-3 bg-white/90 backdrop-blur-sm rounded-full shadow-md hover:scale-110 transition-transform z-10 ${
+                  isLoading ? "opacity-50 cursor-not-allowed" : ""
+                }`}
+              >
+                <Heart
+                  className={`w-6 h-6 transition-all ${
+                    isLiked
+                      ? "fill-red-500 text-red-500 animate-pulse"
+                      : "text-gray-600 hover:text-red-500"
+                  } ${isLoading ? "animate-spin" : ""}`}
+                />
+              </button>
             </div>
 
-            {/* Thumbnail Images */}
             {images.length > 1 && (
               <div className="flex gap-2 mt-4 overflow-x-auto pb-2">
                 {images.map((img, index) => (
@@ -227,13 +213,11 @@ export default function VehicleDetailPage() {
 
           {/* ===== Right Column: Details ===== */}
           <div>
-            {/* Title & Price */}
             <div className="flex justify-between items-start gap-4">
               <div>
                 <h1 className="text-2xl md:text-3xl font-bold font-heading">
                   {car.title || `${car.brand} ${car.model}`}
                 </h1>
-                {/* Owner name under title */}
                 <div className="flex items-center gap-2 mt-1">
                   <span className="text-sm text-[rgb(var(--muted-foreground))]">
                     Posted by
@@ -248,25 +232,12 @@ export default function VehicleDetailPage() {
                   )}
                 </div>
               </div>
-              <button
-                onClick={handleFavoriteToggle}
-                className="p-2 rounded-full hover:bg-[rgb(var(--muted))] transition"
-              >
-                <Heart
-                  className={`w-6 h-6 ${
-                    isLiked
-                      ? "fill-red-500 text-red-500"
-                      : "text-[rgb(var(--muted-foreground))]"
-                  }`}
-                />
-              </button>
             </div>
 
             <p className="text-3xl font-bold text-primary-500 mt-2">
               ${formatPrice(car.price)}
             </p>
 
-            {/* Specs Grid */}
             <div className="grid grid-cols-2 gap-3 mt-6">
               <div className="flex items-center gap-2 p-3 bg-[rgb(var(--muted))] rounded-lg">
                 <Calendar className="w-4 h-4 text-primary-500" />
@@ -306,13 +277,11 @@ export default function VehicleDetailPage() {
               </div>
             </div>
 
-            {/* Location */}
             <div className="flex items-center gap-2 mt-4 text-[rgb(var(--muted-foreground))]">
               <MapPin className="w-4 h-4" />
               <span>{car.city || "Location not specified"}</span>
             </div>
 
-            {/* Description */}
             <div className="mt-6">
               <h3 className="font-semibold mb-2">Description</h3>
               <p className="text-[rgb(var(--muted-foreground))] leading-relaxed">
@@ -320,7 +289,6 @@ export default function VehicleDetailPage() {
               </p>
             </div>
 
-            {/* Actions */}
             <div className="flex flex-wrap gap-3 mt-8">
               <button className="btn-primary flex-1">
                 <Phone className="w-4 h-4 mr-2" />
@@ -331,7 +299,6 @@ export default function VehicleDetailPage() {
               </button>
             </div>
 
-            {/* Seller Info Card */}
             <div className="mt-6 p-4 bg-[rgb(var(--muted))] rounded-xl">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-full bg-gradient-to-r from-primary-500 to-accent-500 flex items-center justify-center text-white font-bold text-lg">
@@ -360,7 +327,6 @@ export default function VehicleDetailPage() {
               </div>
             </div>
 
-            {/* ===== Owner Info Section ===== */}
             <div className="mt-4 p-4 border border-[rgb(var(--border))] rounded-xl">
               <h4 className="text-sm font-semibold mb-2">📋 Ad Information</h4>
               <div className="space-y-1 text-sm text-[rgb(var(--muted-foreground))]">

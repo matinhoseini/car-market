@@ -8,7 +8,6 @@ import {
   User,
   Mail,
   Calendar,
-  Shield,
   LogOut,
   Settings,
   Car,
@@ -57,10 +56,13 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchMyCars = async () => {
       try {
-        const data = await vehiclesService.getMyCars();
-        setMyCars(data.results || data || []);
+        const data = await vehiclesService.getAllCars({});
+        const cars = data.results || data || [];
+        const userCars = cars.filter((car) => car.owner_id === user?.id);
+        setMyCars(userCars);
       } catch (error) {
         console.error("Error fetching my cars:", error);
+        setMyCars([]);
       } finally {
         setCarsLoading(false);
       }
@@ -75,18 +77,12 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchFavoritesCount = async () => {
       try {
-        const data = await vehiclesService.getFavoritesCount();
-        setFavoritesCount(data.count || 0);
+        const favorites = await vehiclesService.getFavorites();
+        const count = Array.isArray(favorites) ? favorites.length : 0;
+        setFavoritesCount(count);
       } catch (error) {
-        console.error("Error fetching favorites count:", error);
-        // اگر API count نداشت، از لیست کامل استفاده کن
-        try {
-          const favorites = await vehiclesService.getFavorites();
-          setFavoritesCount(Array.isArray(favorites) ? favorites.length : 0);
-        } catch (err) {
-          console.error("Error fetching favorites list:", err);
-          setFavoritesCount(0);
-        }
+        console.error("Error fetching favorites:", error);
+        setFavoritesCount(0);
       } finally {
         setFavoritesLoading(false);
       }
@@ -103,7 +99,6 @@ export default function DashboardPage() {
     router.push("/auth/login");
   };
 
-  // ===== Format helpers =====
   const formatPrice = (price) => {
     return new Intl.NumberFormat("en-US").format(price);
   };
@@ -160,7 +155,9 @@ export default function DashboardPage() {
                   <p className="text-sm text-[rgb(var(--muted-foreground))]">
                     My Vehicles
                   </p>
-                  <p className="text-2xl font-bold">{myCars.length}</p>
+                  <p className="text-2xl font-bold">
+                    {carsLoading ? "..." : myCars.length}
+                  </p>
                 </div>
               </div>
             </div>
