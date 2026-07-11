@@ -1,9 +1,15 @@
+from rest_framework.views import APIView
 from django.db.models import Q
+from rest_framework import status
 
 from .filters import CarFilter
-from .models import Car, CarImage
-from .serializers import CarSerializer, CarImageSerializer
+from .models import Car, CarImage, Favorite
 
+from .serializers import (
+    CarSerializer,
+    CarImageSerializer,
+    FavoriteSerializer,
+)
 from rest_framework.generics import (
     RetrieveAPIView,
     RetrieveUpdateDestroyAPIView
@@ -169,3 +175,35 @@ def delete_car_image(request, image_id):
     car_image.delete()
 
     return Response(status=204)
+class AddFavoriteView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, car_id):
+
+        try:
+            car = Car.objects.get(id=car_id)
+
+        except Car.DoesNotExist:
+            return Response(
+                {"error": "Car not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        favorite, created = Favorite.objects.get_or_create(
+            user=request.user,
+            car=car
+        )
+
+        if not created:
+            return Response(
+                {"error": "Already in favorites"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        serializer = FavoriteSerializer(favorite)
+
+        return Response(
+            serializer.data,
+            status=status.HTTP_201_CREATED
+        )

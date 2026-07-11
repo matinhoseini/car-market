@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Car, CarImage
+from .models import Car, CarImage, Favorite
 
 
 class CarImageSerializer(serializers.ModelSerializer):
@@ -66,3 +66,16 @@ class CarSerializer(serializers.ModelSerializer):
 
     def get_owner_username(self, obj):
         return obj.owner.username
+    
+class FavoriteSerializer(serializers.ModelSerializer):
+
+    car = CarSerializer(read_only=True)
+
+    class Meta:
+        model = Favorite
+
+        fields = [
+            "id",
+            "car",
+            "created_at",
+        ]
