@@ -30,6 +30,9 @@ class CarSerializer(serializers.ModelSerializer):
         read_only=True
     )
 
+    owner_id = serializers.SerializerMethodField()
+    owner_username = serializers.SerializerMethodField()
+
     class Meta:
         model = Car
 
@@ -44,6 +47,8 @@ class CarSerializer(serializers.ModelSerializer):
             'city',
             'fuel_type',
             'gearbox',
+            'owner_id',
+            'owner_username',
             'images',
             'created_at',
         ]
@@ -51,4 +56,13 @@ class CarSerializer(serializers.ModelSerializer):
         read_only_fields = [
             'id',
             'created_at',
+            'owner_id',
+            'owner_username',
+            'images',
         ]
+
+    def get_owner_id(self, obj):
+        return obj.owner.id
+
+    def get_owner_username(self, obj):
+        return obj.owner.username
