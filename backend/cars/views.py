@@ -179,7 +179,7 @@ def delete_car_image(request, image_id):
     car_image.delete()
 
     return Response(status=204)
-class AddFavoriteView(APIView):
+class FavoriteView(APIView):
 
     permission_classes = [IsAuthenticated]
 
@@ -205,15 +205,15 @@ class AddFavoriteView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        serializer = FavoriteSerializer(favorite)
+        serializer = FavoriteSerializer(
+            favorite,
+            context={"request": request}
+        )
 
         return Response(
             serializer.data,
             status=status.HTTP_201_CREATED
         )
-class RemoveFavoriteView(APIView):
-
-    permission_classes = [IsAuthenticated]
 
     def delete(self, request, car_id):
 
@@ -233,7 +233,7 @@ class RemoveFavoriteView(APIView):
 
         return Response(
             {"message": "Removed from favorites"},
-            status=status.HTTP_200_OK
+            status=status.HTTP_204_NO_CONTENT
         )
 class FavoriteListView(APIView):
     permission_classes = [IsAuthenticated]
