@@ -3,15 +3,57 @@ import "./globals.css";
 import { Toaster } from "react-hot-toast";
 import Header from "../components/common/Header";
 import Footer from "../components/common/Footer";
+import { title } from "process";
+import path from "path";
+import localFont from "next/font/local";
+
+const inter = localFont({
+  src: [
+    {
+      path: "../public/fonts/Inter_18pt-Regular.ttf",
+      weight: "400",
+      style: "normal",
+    },
+    {
+      path: "../public/fonts/Inter_18pt-Bold.ttf",
+      weight: "700",
+      style: "normal",
+    },
+  ],
+  variable: "--font-inter",
+});
+
+const poppins = localFont({
+  src: [
+    {
+      path: "../public/fonts/Poppins-Regular.ttf",
+      weight: "400",
+      style: "normal",
+    },
+    {
+      path: "../public/fonts/Poppins-Bold.ttf",
+      weight: "700",
+      style: "normal",
+    },
+  ],
+  variable: "--font-poppins",
+});
 
 export const metadata = {
-  title: "Car Marketplace",
+  title: {
+    default: "Car Marketplace",
+    template: "%s | Car Marketplace",
+  },
   description: "Buy and sell cars online",
 };
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={`${inter.variable} ${poppins.variable}`}
+    >
       <body>
         <div className="min-h-screen flex flex-col">
           <Header />

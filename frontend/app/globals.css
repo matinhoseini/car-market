@@ -1,28 +1,25 @@
 /* app/globals.css */
-
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@400;500;600;700;800;900&display=swap");
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
-  /* لایت مود */
+  /* ===== Light Mode ===== */
   :root {
     --background: 248 250 252;
-    --foreground: 15 23 42; /* ← مشکی پررنگ برای لایت */
+    --foreground: 15 23 42;
     --card: 255 255 255;
     --card-foreground: 15 23 42;
     --border: 226 232 240;
     --primary: 59 130 246;
     --muted: 241 245 249;
-    --muted-foreground: 71 85 105; /* ← خاکستری خوانا */
+    --muted-foreground: 71 85 105;
   }
 
-  /* دارک مود */
+  /* ===== Dark Mode ===== */
   .dark {
     --background: 15 23 42;
-    --foreground: 241 245 249; /* ← سفید برای دارک */
+    --foreground: 241 245 249;
     --card: 30 41 59;
     --card-foreground: 241 245 249;
     --border: 51 65 85;
@@ -31,22 +28,24 @@
     --muted-foreground: 148 163 184;
   }
 
+  /* ===== Body ===== */
   body {
     @apply bg-[rgb(var(--background))] text-[rgb(var(--foreground))] transition-colors duration-500;
-    font-family: "Inter", sans-serif;
+    font-family: var(--font-inter), sans-serif;
   }
 
+  /* ===== Headings ===== */
   h1,
   h2,
   h3,
   h4,
   h5,
   h6 {
-    font-family: "Poppins", sans-serif;
+    font-family: var(--font-poppins), sans-serif;
   }
 }
 
-/* ===== بقیه کلاس‌ها ===== */
+/* ===== Components ===== */
 @layer components {
   .header {
     @apply sticky top-0 z-50 bg-[rgb(var(--card))] border-b border-[rgb(var(--border))] shadow-sm transition-colors duration-300;
@@ -102,6 +101,7 @@
   }
 }
 
+/* ===== Utilities ===== */
 @layer utilities {
   .text-gradient {
     @apply bg-gradient-to-r from-primary-500 to-blue-400 bg-clip-text text-transparent;

@@ -5,12 +5,17 @@ import { useState, useEffect } from "react";
 import { Search, Filter, X, ChevronDown } from "lucide-react";
 import VehicleCard from "../../components/vehicles/VehicleCard";
 import { vehiclesService } from "../../services/vehicles.service";
+import { title } from "process";
 
 export default function VehiclesPage() {
   const [cars, setCars] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [showFilters, setShowFilters] = useState(false);
+
+  useEffect(() => {
+    document.title = "Vehicles | Car Marketplace";
+  }, []);
 
   // ===== Filter states =====
   const [filters, setFilters] = useState({

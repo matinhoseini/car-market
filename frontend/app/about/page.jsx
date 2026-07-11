@@ -1,5 +1,11 @@
 "use client";
 
+import { title } from "process";
+
+const metadata = {
+  title: "About aour team",
+};
+
 export default function AboutUs() {
   return (
     <div className="pt-14 md:pt-16 lg:pt-16">
