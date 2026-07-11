@@ -4,7 +4,6 @@ from rest_framework import status
 
 from .filters import CarFilter
 from .models import Car, CarImage, Favorite
-
 from .serializers import (
     CarSerializer,
     CarImageSerializer,
@@ -206,4 +205,28 @@ class AddFavoriteView(APIView):
         return Response(
             serializer.data,
             status=status.HTTP_201_CREATED
+        )
+class RemoveFavoriteView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, car_id):
+
+        try:
+            favorite = Favorite.objects.get(
+                user=request.user,
+                car_id=car_id
+            )
+
+        except Favorite.DoesNotExist:
+            return Response(
+                {"error": "Favorite not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        favorite.delete()
+
+        return Response(
+            {"message": "Removed from favorites"},
+            status=status.HTTP_200_OK
         )
