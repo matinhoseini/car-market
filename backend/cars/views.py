@@ -1,9 +1,14 @@
+from rest_framework.views import APIView
 from django.db.models import Q
+from rest_framework import status
 
 from .filters import CarFilter
-from .models import Car, CarImage
-from .serializers import CarSerializer, CarImageSerializer
-
+from .models import Car, CarImage, Favorite
+from .serializers import (
+    CarSerializer,
+    CarImageSerializer,
+    FavoriteSerializer,
+)
 from rest_framework.generics import (
     RetrieveAPIView,
     RetrieveUpdateDestroyAPIView
@@ -77,8 +82,9 @@ def car_list(request):
 
 
     serializer = CarSerializer(
-        paginated_cars,
-        many=True
+    cars,
+    many=True,
+    context={"request": request}
     )
 
     return paginator.get_paginated_response(
@@ -91,6 +97,10 @@ class CarDetailView(RetrieveAPIView):
     queryset = Car.objects.all()
     serializer_class = CarSerializer
 
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context["request"] = self.request
+        return context
 
 class CarManageView(RetrieveUpdateDestroyAPIView):
 
@@ -169,3 +179,75 @@ def delete_car_image(request, image_id):
     car_image.delete()
 
     return Response(status=204)
+class AddFavoriteView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, car_id):
+
+        try:
+            car = Car.objects.get(id=car_id)
+
+        except Car.DoesNotExist:
+            return Response(
+                {"error": "Car not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        favorite, created = Favorite.objects.get_or_create(
+            user=request.user,
+            car=car
+        )
+
+        if not created:
+            return Response(
+                {"error": "Already in favorites"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        serializer = FavoriteSerializer(favorite)
+
+        return Response(
+            serializer.data,
+            status=status.HTTP_201_CREATED
+        )
+class RemoveFavoriteView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, car_id):
+
+        try:
+            favorite = Favorite.objects.get(
+                user=request.user,
+                car_id=car_id
+            )
+
+        except Favorite.DoesNotExist:
+            return Response(
+                {"error": "Favorite not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        favorite.delete()
+
+        return Response(
+            {"message": "Removed from favorites"},
+            status=status.HTTP_200_OK
+        )
+class FavoriteListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+
+        favorites = Favorite.objects.filter(
+            user=request.user
+        ).select_related("car")
+
+        serializer = FavoriteSerializer(
+            favorites,
+            many=True,
+            context={"request": request}
+        )
+
+        return Response(serializer.data)
