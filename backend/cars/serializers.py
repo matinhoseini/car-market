@@ -102,3 +102,9 @@ class FavoriteSerializer(serializers.ModelSerializer):
                 context=self.context
     )
             return fields
+class PublicUserSerializer(serializers.Serializer):
+
+    id = serializers.IntegerField()
+    username = serializers.CharField()
+    cars_count = serializers.IntegerField()
+    cars = CarSerializer(many=True)

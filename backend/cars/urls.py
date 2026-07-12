@@ -8,7 +8,9 @@ from .views import (
     delete_car_image,
     FavoriteView,
     FavoriteListView,
-        MyCarsView,
+    MyCarsView,
+    DashboardView,
+    PublicUserView,
 )
 
 urlpatterns = [
@@ -40,5 +42,14 @@ urlpatterns = [
     path(
         'favorites/',
         FavoriteListView.as_view(),
+    ),
+
+    path(
+    "dashboard/",
+    DashboardView.as_view(),
+    ),
+    path(
+    "users/<int:user_id>/",
+    PublicUserView.as_view(),
     ),
 ]
