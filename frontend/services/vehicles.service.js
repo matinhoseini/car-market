@@ -15,12 +15,12 @@ export const vehiclesService = {
   },
 
   // ============================================
-  // GET: /api/cars/{id}/
+  // GET: /api/cars/{id}
   // Get car details by ID
   // Returns: { ..., owner_id, owner_username, is_favorite }
   // ============================================
   getCarById: async (id) => {
-    const response = await api.get(`/cars/${id}/`);
+    const response = await api.get(`/cars/${id}`);
     return response.data;
   },
 
@@ -47,11 +47,11 @@ export const vehiclesService = {
   },
 
   // ============================================
-  // POST: /api/cars/{car_id}/favorite/remove/
+  // DELETE: /api/cars/{car_id}/favorite/
   // Remove car from favorites (requires JWT)
   // ============================================
   removeFavorite: async (carId) => {
-    const response = await api.post(`/cars/${carId}/favorite/remove/`);
+    const response = await api.delete(`/cars/${carId}/favorite/`);
     return response.data;
   },
 
@@ -88,11 +88,11 @@ export const vehiclesService = {
   },
 
   // ============================================
-  // PUT: /api/cars/{id}/
-  // Update car listing
+  // PUT: /api/cars/manage/{id}
+  // Update car listing (owner only)
   // ============================================
   updateCar: async (id, data) => {
-    const response = await api.put(`/cars/${id}/`, data, {
+    const response = await api.put(`/cars/manage/${id}`, data, {
       headers: {
         "Content-Type": "multipart/form-data",
       },
@@ -101,16 +101,38 @@ export const vehiclesService = {
   },
 
   // ============================================
-  // DELETE: /api/cars/{id}/
-  // Delete car listing
+  // PATCH: /api/cars/manage/{id}
+  // Partial update car listing (owner only)
   // ============================================
-  deleteCar: async (id) => {
-    const response = await api.delete(`/cars/${id}/`);
+  patchCar: async (id, data) => {
+    const response = await api.patch(`/cars/manage/${id}`, data, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
     return response.data;
   },
 
   // ============================================
-  // POST: /api/cars/{id}/upload-image/
+  // DELETE: /api/cars/manage/{id}
+  // Delete car listing (owner only)
+  // ============================================
+  deleteCar: async (id) => {
+    const response = await api.delete(`/cars/manage/${id}`);
+    return response.data;
+  },
+
+  // ============================================
+  // GET: /api/cars/manage/{id}
+  // Get car for editing (owner only)
+  // ============================================
+  getCarForEdit: async (id) => {
+    const response = await api.get(`/cars/manage/${id}`);
+    return response.data;
+  },
+
+  // ============================================
+  // POST: /api/cars/{car_id}/upload-image/
   // Upload image to car listing
   // ============================================
   uploadImage: async (carId, formData) => {
@@ -123,10 +145,13 @@ export const vehiclesService = {
   },
 
   // ============================================
-  // DELETE: /api/cars/{id}/images/{image_id}/
+  // DELETE: /api/cars/{image}/{image_id}
   // Delete specific image
+  // NOTE: API uses /cars/{car_id}/images/{image_id}/
   // ============================================
   deleteImage: async (carId, imageId) => {
+    // Based on API docs: DELETE /api/cars/{image}/{image_id}
+    // Using the correct endpoint format
     const response = await api.delete(`/cars/${carId}/images/${imageId}/`);
     return response.data;
   },

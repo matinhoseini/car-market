@@ -39,6 +39,12 @@ export default function VehicleCard({ car }) {
     return new Intl.NumberFormat("en-US").format(mileage);
   };
 
+  const handleFavoriteClick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    toggleFavorite();
+  };
+
   return (
     <div className="group relative bg-[rgb(var(--card))] rounded-xl border border-[rgb(var(--border))] overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-500 hover:-translate-y-2">
       {/* ===== Image with next/image ===== */}
@@ -83,7 +89,7 @@ export default function VehicleCard({ car }) {
 
           {/* ===== Favorite Button ===== */}
           <button
-            onClick={toggleFavorite}
+            onClick={handleFavoriteClick}
             disabled={isLoading}
             className={`absolute top-3 right-3 p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-md hover:scale-110 transition-transform z-10 ${
               isLoading ? "opacity-50 cursor-not-allowed" : ""
