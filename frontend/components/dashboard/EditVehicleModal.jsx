@@ -86,12 +86,15 @@ export default function EditVehicleModal({
     setLoading(true);
 
     try {
+      // 1. Update car details (JSON)
       await vehiclesService.updateCar(vehicle.id, formData);
 
+      // 2. Delete removed images
       for (const imageId of imagesToDelete) {
-        await vehiclesService.deleteImage(vehicle.id, imageId);
+        await vehiclesService.deleteImage(imageId);
       }
 
+      // 3. Upload new images
       for (const image of images) {
         const formDataImage = new FormData();
         formDataImage.append("image", image);
@@ -123,11 +126,10 @@ export default function EditVehicleModal({
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Edit Vehicle" size="xl">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* ===== LEFT: Images ===== */}
+        {/* LEFT: Images */}
         <div>
           <label className="label">Images</label>
 
-          {/* Existing Images */}
           {existingImages.length > 0 && (
             <div className="grid grid-cols-2 gap-2 mb-3">
               {existingImages.map((img) => (
@@ -154,7 +156,6 @@ export default function EditVehicleModal({
             </div>
           )}
 
-          {/* New Images Preview */}
           {imagePreviews.length > 0 && (
             <div className="grid grid-cols-2 gap-2 mb-3">
               {imagePreviews.map((preview, index) => (
@@ -179,7 +180,6 @@ export default function EditVehicleModal({
             </div>
           )}
 
-          {/* Add Image Button */}
           <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 border-2 border-dashed border-[rgb(var(--border))] rounded-lg hover:border-primary-500 transition-colors w-full justify-center">
             <ImagePlus className="w-5 h-5 text-[rgb(var(--muted-foreground))]" />
             <span className="text-sm text-[rgb(var(--muted-foreground))]">
@@ -198,7 +198,7 @@ export default function EditVehicleModal({
           </p>
         </div>
 
-        {/* ===== RIGHT: Form ===== */}
+        {/* RIGHT: Form */}
         <div>
           <form onSubmit={handleSubmit} className="space-y-3">
             <div>

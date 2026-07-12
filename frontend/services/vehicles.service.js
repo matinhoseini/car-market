@@ -24,15 +24,11 @@ export const vehiclesService = {
 
   // ============================================
   // GET: /api/cars/manage/
-  // Get all cars owned by current user (requires JWT)
-  // ✅ NEW API: /api/cars/manage/
+  // Get all cars owned by current user
   // ============================================
-  // services/vehicles.service.js
   getMyCars: async () => {
     try {
-      // ✅ API جدید: /api/cars/manage/
       const response = await api.get("/cars/manage/");
-      console.log("✅ My cars fetched:", response.data);
       return response.data;
     } catch (error) {
       console.error(
@@ -82,16 +78,17 @@ export const vehiclesService = {
     try {
       const response = await api.get("/cars/favorites/");
 
-      if (
-        Array.isArray(response.data) &&
-        response.data.length > 0 &&
-        response.data[0].car
-      ) {
-        return response.data.map((item) => ({
-          ...item.car,
-          favorite_id: item.id,
-          favorited_at: item.created_at,
-        }));
+      if (Array.isArray(response.data) && response.data.length > 0) {
+        if (response.data[0].car) {
+          return response.data.map((item) => ({
+            ...item.car,
+            favorite_id: item.id,
+            favorited_at: item.created_at,
+          }));
+        }
+        if (response.data[0].id && response.data[0].title) {
+          return response.data;
+        }
       }
 
       if (response.data.results) {
@@ -115,7 +112,7 @@ export const vehiclesService = {
   updateCar: async (id, data) => {
     const response = await api.put(`/cars/manage/${id}/`, data, {
       headers: {
-        "Content-Type": "multipart/form-data",
+        "Content-Type": "application/json",
       },
     });
     return response.data;
@@ -126,9 +123,9 @@ export const vehiclesService = {
   // Partial update car listing (owner only)
   // ============================================
   patchCar: async (id, data) => {
-    const response = await api.patch(`/cars/manage/${id}`, data, {
+    const response = await api.patch(`/cars/manage/${id}/`, data, {
       headers: {
-        "Content-Type": "multipart/form-data",
+        "Content-Type": "application/json",
       },
     });
     return response.data;
@@ -169,8 +166,8 @@ export const vehiclesService = {
   // DELETE: /api/cars/{image}/{image_id}
   // Delete specific image
   // ============================================
-  deleteImage: async (carId, imageId) => {
-    const response = await api.delete(`/cars/${carId}/images/${imageId}/`);
+  deleteImage: async (imageId) => {
+    const response = await api.delete(`/cars/image/${imageId}/`);
     return response.data;
   },
 };

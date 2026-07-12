@@ -64,34 +64,16 @@ export default function DashboardPage() {
 
   // ===== Fetch user's cars =====
   // app/dashboard/page.jsx
-  // app/dashboard/page.jsx (بخش مربوط به fetchMyCars)
-
-  // ===== Fetch user's cars with new API =====
   const fetchMyCars = async () => {
     setCarsLoading(true);
     try {
-      console.log("🔍 Fetching my cars from /api/cars/manage/");
+      console.log("🔍 Fetching my cars...");
       const data = await vehiclesService.getMyCars();
-      console.log("📦 My cars response:", data);
-
-      // Handle different response formats
-      if (Array.isArray(data)) {
-        setMyCars(data);
-      } else if (data?.results && Array.isArray(data.results)) {
-        setMyCars(data.results);
-      } else if (data?.data && Array.isArray(data.data)) {
-        setMyCars(data.data);
-      } else {
-        setMyCars([]);
-      }
+      console.log("📦 My Cars Response:", data);
+      setMyCars(data.results || data || []);
     } catch (error) {
       console.error("❌ Error fetching my cars:", error);
-      const errorMsg =
-        error.response?.data?.detail ||
-        error.response?.data?.message ||
-        "Failed to load your cars";
-      toast.error(errorMsg);
-      setMyCars([]);
+      console.error("❌ Error response:", error.response?.data);
     } finally {
       setCarsLoading(false);
     }
