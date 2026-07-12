@@ -1,3 +1,4 @@
+from django.contrib.auth.models import User
 from rest_framework.views import APIView
 from django.db.models import Q
 from rest_framework import status
@@ -8,6 +9,7 @@ from .serializers import (
     CarSerializer,
     CarImageSerializer,
     FavoriteSerializer,
+    PublicUserSerializer,
 )
 from rest_framework.generics import (
     RetrieveAPIView,
@@ -107,7 +109,7 @@ class CarManageView(RetrieveUpdateDestroyAPIView):
     queryset = Car.objects.all()
     serializer_class = CarSerializer
     permission_classes = [IsOwner]
-    
+
 class MyCarsView(APIView):
 
     permission_classes = [IsAuthenticated]
@@ -267,3 +269,48 @@ class FavoriteListView(APIView):
         )
 
         return Response(serializer.data)
+class DashboardView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+
+        cars_count = Car.objects.filter(
+            owner=request.user
+        ).count()
+
+        favorites_count = Favorite.objects.filter(
+            user=request.user
+        ).count()
+
+        return Response({
+            "cars_count": cars_count,
+            "favorites_count": favorites_count,
+        })
+class PublicUserView(APIView):
+
+    def get(self, request, user_id):
+
+        try:
+            user = User.objects.get(id=user_id)
+
+        except User.DoesNotExist:
+            return Response(
+                {"error": "User not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        cars = Car.objects.filter(owner=user)
+
+        data = {
+    "id": user.id,
+    "username": user.username,
+    "cars_count": cars.count(),
+    "cars": CarSerializer(
+        cars,
+        many=True,
+        context={"request": request}
+    ).data
+}
+
+        return Response(data)
