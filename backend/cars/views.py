@@ -107,6 +107,22 @@ class CarManageView(RetrieveUpdateDestroyAPIView):
     queryset = Car.objects.all()
     serializer_class = CarSerializer
     permission_classes = [IsOwner]
+    
+class MyCarsView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+
+        cars = Car.objects.filter(owner=request.user)
+
+        serializer = CarSerializer(
+            cars,
+            many=True,
+            context={"request": request}
+        )
+
+        return Response(serializer.data)   
 
 
 @extend_schema(
