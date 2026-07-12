@@ -22,6 +22,7 @@ import {
 import { vehiclesService } from "../../../services/vehicles.service";
 import { useFavorites } from "../../../hooks/useFavorites";
 import toast from "react-hot-toast";
+import { authService } from "@/services/auth.service";
 
 export default function VehicleDetailPage() {
   const params = useParams();

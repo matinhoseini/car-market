@@ -14,6 +14,7 @@ export default function FavoritesPage() {
   const [favorites, setFavorites] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // ===== Check authentication =====
   useEffect(() => {
     const token = localStorage.getItem("access_token");
     if (!token) {
@@ -22,17 +23,34 @@ export default function FavoritesPage() {
     }
   }, [router]);
 
+  // ===== Fetch favorites =====
   useEffect(() => {
     fetchFavorites();
   }, []);
 
   const fetchFavorites = async () => {
+    setLoading(true);
     try {
       const data = await vehiclesService.getFavorites();
-      setFavorites(Array.isArray(data) ? data : []);
+      console.log("📦 Processed favorites:", data);
+
+      // Ensure data is an array
+      if (Array.isArray(data)) {
+        setFavorites(data);
+      } else if (data && typeof data === "object") {
+        // If data is an object with results
+        if (data.results && Array.isArray(data.results)) {
+          setFavorites(data.results);
+        } else {
+          setFavorites([]);
+        }
+      } else {
+        setFavorites([]);
+      }
     } catch (error) {
       console.error("Error fetching favorites:", error);
-      toast.error("Failed to load favorites");
+      toast.error(error.response?.data?.detail || "Failed to load favorites");
+      setFavorites([]);
     } finally {
       setLoading(false);
     }
@@ -60,7 +78,8 @@ export default function FavoritesPage() {
           <div>
             <h1 className="text-3xl font-bold font-heading">❤️ My Favorites</h1>
             <p className="text-[rgb(var(--muted-foreground))] mt-1">
-              {favorites.length} cars in your favorites list
+              {favorites.length} car{favorites.length !== 1 ? "s" : ""} in your
+              favorites list
             </p>
           </div>
         </div>
@@ -74,14 +93,14 @@ export default function FavoritesPage() {
               Start exploring cars and add your favorites by clicking the heart
               icon.
             </p>
-            <Link href="/">
+            <Link href="/vehicles">
               <button className="btn-primary">Browse Cars</button>
             </Link>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {favorites.map((car) => (
-              <VehicleCard key={car.id} car={car} />
+              <VehicleCard key={car.id || car.car_id} car={car} />
             ))}
           </div>
         )}

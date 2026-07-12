@@ -8,27 +8,37 @@ import {
   User,
   Mail,
   Calendar,
+  Shield,
   LogOut,
   Settings,
   Car,
   Heart,
   ShoppingBag,
   PlusCircle,
-  ArrowRight,
+  MoreVertical,
 } from "lucide-react";
 import { authService } from "../../services/auth.service";
 import { vehiclesService } from "../../services/vehicles.service";
 import toast from "react-hot-toast";
+import VehicleActionsModal from "../../components/dashboard/VehicleActionsModal";
+import EditVehicleModal from "../../components/dashboard/EditVehicleModal";
 
 export default function DashboardPage() {
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [myCars, setMyCars] = useState([]);
+  const [favorites, setFavorites] = useState([]);
   const [carsLoading, setCarsLoading] = useState(true);
-  const [favoritesCount, setFavoritesCount] = useState(0);
   const [favoritesLoading, setFavoritesLoading] = useState(true);
 
+  // ===== Modal states =====
+  const [selectedVehicle, setSelectedVehicle] = useState(null);
+  const [isActionsModalOpen, setIsActionsModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // ===== Check auth =====
   useEffect(() => {
     const token = localStorage.getItem("access_token");
     if (!token) {
@@ -53,52 +63,94 @@ export default function DashboardPage() {
   }, [router]);
 
   // ===== Fetch user's cars =====
-  useEffect(() => {
-    const fetchMyCars = async () => {
-      try {
-        const data = await vehiclesService.getAllCars({});
-        const cars = data.results || data || [];
-        const userCars = cars.filter((car) => car.owner_id === user?.id);
-        setMyCars(userCars);
-      } catch (error) {
-        console.error("Error fetching my cars:", error);
-        setMyCars([]);
-      } finally {
-        setCarsLoading(false);
-      }
-    };
+  // app/dashboard/page.jsx
+  // app/dashboard/page.jsx (بخش مربوط به fetchMyCars)
 
+  // ===== Fetch user's cars with new API =====
+  const fetchMyCars = async () => {
+    setCarsLoading(true);
+    try {
+      console.log("🔍 Fetching my cars from /api/cars/manage/");
+      const data = await vehiclesService.getMyCars();
+      console.log("📦 My cars response:", data);
+
+      // Handle different response formats
+      if (Array.isArray(data)) {
+        setMyCars(data);
+      } else if (data?.results && Array.isArray(data.results)) {
+        setMyCars(data.results);
+      } else if (data?.data && Array.isArray(data.data)) {
+        setMyCars(data.data);
+      } else {
+        setMyCars([]);
+      }
+    } catch (error) {
+      console.error("❌ Error fetching my cars:", error);
+      const errorMsg =
+        error.response?.data?.detail ||
+        error.response?.data?.message ||
+        "Failed to load your cars";
+      toast.error(errorMsg);
+      setMyCars([]);
+    } finally {
+      setCarsLoading(false);
+    }
+  };
+
+  // ===== Fetch favorites =====
+  const fetchFavorites = async () => {
+    setFavoritesLoading(true);
+    try {
+      const data = await vehiclesService.getFavorites();
+      setFavorites(data.results || data || []);
+    } catch (error) {
+      console.error("Error fetching favorites:", error);
+    } finally {
+      setFavoritesLoading(false);
+    }
+  };
+
+  useEffect(() => {
     if (user) {
       fetchMyCars();
+      fetchFavorites();
     }
   }, [user]);
 
-  // ===== Fetch favorites count =====
-  useEffect(() => {
-    const fetchFavoritesCount = async () => {
-      try {
-        const favorites = await vehiclesService.getFavorites();
-        const count = Array.isArray(favorites) ? favorites.length : 0;
-        setFavoritesCount(count);
-      } catch (error) {
-        console.error("Error fetching favorites:", error);
-        setFavoritesCount(0);
-      } finally {
-        setFavoritesLoading(false);
-      }
-    };
-
-    if (user) {
-      fetchFavoritesCount();
-    }
-  }, [user]);
-
+  // ===== Handlers =====
   const handleLogout = () => {
     authService.logout();
     toast.success("Logged out successfully");
     router.push("/auth/login");
   };
 
+  const openActions = (vehicle) => {
+    setSelectedVehicle(vehicle);
+    setIsActionsModalOpen(true);
+  };
+
+  const handleEdit = (vehicle) => {
+    setSelectedVehicle(vehicle);
+    setIsEditModalOpen(true);
+  };
+
+  const handleDelete = async (vehicleId) => {
+    setIsDeleting(true);
+    try {
+      await vehiclesService.deleteCar(vehicleId);
+      await fetchMyCars();
+      toast.success("Vehicle deleted successfully");
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to delete vehicle");
+    } finally {
+      setIsDeleting(false);
+      setIsActionsModalOpen(false);
+      setSelectedVehicle(null);
+    }
+  };
+
+  // ===== Helpers =====
   const formatPrice = (price) => {
     return new Intl.NumberFormat("en-US").format(price);
   };
@@ -143,10 +195,11 @@ export default function DashboardPage() {
           </button>
         </div>
 
-        {/* ===== Stats Cards ===== */}
+        {/* ===== Stats ===== */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
+          {/* My Vehicles */}
           <Link href="/dashboard/my-vehicles" className="block">
-            <div className="card card-hover p-6 cursor-pointer">
+            <div className="card card-hover p-6 cursor-pointer transition-all hover:border-primary-500">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-blue-500/10 rounded-xl">
                   <Car className="w-6 h-6 text-blue-500" />
@@ -155,16 +208,15 @@ export default function DashboardPage() {
                   <p className="text-sm text-[rgb(var(--muted-foreground))]">
                     My Vehicles
                   </p>
-                  <p className="text-2xl font-bold">
-                    {carsLoading ? "..." : myCars.length}
-                  </p>
+                  <p className="text-2xl font-bold">{myCars.length}</p>
                 </div>
               </div>
             </div>
           </Link>
 
+          {/* Favorites */}
           <Link href="/dashboard/favorites" className="block">
-            <div className="card card-hover p-6 cursor-pointer">
+            <div className="card card-hover p-6 cursor-pointer transition-all hover:border-red-500">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-red-500/10 rounded-xl">
                   <Heart className="w-6 h-6 text-red-500" />
@@ -173,20 +225,15 @@ export default function DashboardPage() {
                   <p className="text-sm text-[rgb(var(--muted-foreground))]">
                     Favorites
                   </p>
-                  <p className="text-2xl font-bold">
-                    {favoritesLoading ? "..." : favoritesCount}
-                  </p>
+                  <p className="text-2xl font-bold">{favorites.length}</p>
                 </div>
-              </div>
-              <div className="mt-2 text-xs text-[rgb(var(--muted-foreground))] flex items-center gap-1">
-                <span>View all favorites</span>
-                <ArrowRight className="w-3 h-3" />
               </div>
             </div>
           </Link>
 
+          {/* Orders */}
           <Link href="/dashboard/orders" className="block">
-            <div className="card card-hover p-6 cursor-pointer">
+            <div className="card card-hover p-6 cursor-pointer transition-all hover:border-green-500">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-green-500/10 rounded-xl">
                   <ShoppingBag className="w-6 h-6 text-green-500" />
@@ -235,40 +282,38 @@ export default function DashboardPage() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {myCars.map((car) => (
-                <Link key={car.id} href={`/vehicles/${car.id}`}>
-                  <div className="card card-hover overflow-hidden">
-                    <div className="relative w-full h-40 bg-gray-100">
-                      {car.images?.[0]?.image ? (
-                        <img
-                          src={getImageUrl(car.images[0].image)}
-                          alt={car.title}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-4xl text-gray-400">
-                          🚗
-                        </div>
-                      )}
-                    </div>
-                    <div className="p-4">
-                      <h3 className="font-semibold text-sm line-clamp-1">
-                        {car.title || `${car.brand} ${car.model}`}
-                      </h3>
-                      <p className="text-lg font-bold text-primary-500">
-                        ${formatPrice(car.price)}
-                      </p>
-                      <p className="text-xs text-[rgb(var(--muted-foreground))]">
-                        {car.year} • {car.fuel_type}
-                      </p>
-                    </div>
+                <div key={car.id} className="card card-hover overflow-hidden">
+                  <div className="relative w-full h-40 bg-gray-100">
+                    <img
+                      src={getImageUrl(car.images?.[0]?.image)}
+                      alt={car.title}
+                      className="w-full h-full object-cover"
+                    />
+                    <button
+                      onClick={() => openActions(car)}
+                      className="absolute top-2 right-2 p-1.5 bg-white/90 backdrop-blur-sm rounded-full shadow-md hover:scale-105 transition"
+                    >
+                      <MoreVertical className="w-5 h-5" />
+                    </button>
                   </div>
-                </Link>
+                  <div className="p-4">
+                    <h3 className="font-semibold text-sm line-clamp-1">
+                      {car.title || `${car.brand} ${car.model}`}
+                    </h3>
+                    <p className="text-lg font-bold text-primary-500">
+                      ${formatPrice(car.price)}
+                    </p>
+                    <p className="text-xs text-[rgb(var(--muted-foreground))]">
+                      {car.year} • {car.fuel_type}
+                    </p>
+                  </div>
+                </div>
               ))}
             </div>
           )}
         </div>
 
-        {/* ===== Profile Card ===== */}
+        {/* ===== Profile ===== */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="card p-6 lg:col-span-1">
             <div className="text-center">
@@ -322,27 +367,28 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* ===== Quick Actions ===== */}
-        <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Link href="/dashboard/add-vehicle">
-            <button className="btn-primary w-full">
-              <PlusCircle className="w-4 h-4 mr-2" />
-              Add Vehicle
-            </button>
-          </Link>
-          <Link href="/dashboard/profile">
-            <button className="btn-outline w-full">
-              <Settings className="w-4 h-4 mr-2" />
-              Edit Profile
-            </button>
-          </Link>
-          <Link href="/dashboard/favorites">
-            <button className="btn-outline w-full">
-              <Heart className="w-4 h-4 mr-2" />
-              View Favorites
-            </button>
-          </Link>
-        </div>
+        {/* ===== Modals ===== */}
+        <VehicleActionsModal
+          isOpen={isActionsModalOpen}
+          onClose={() => {
+            setIsActionsModalOpen(false);
+            setSelectedVehicle(null);
+          }}
+          vehicle={selectedVehicle}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          isDeleting={isDeleting}
+        />
+
+        <EditVehicleModal
+          isOpen={isEditModalOpen}
+          onClose={() => {
+            setIsEditModalOpen(false);
+            setSelectedVehicle(null);
+          }}
+          vehicle={selectedVehicle}
+          onUpdated={fetchMyCars}
+        />
       </div>
     </div>
   );

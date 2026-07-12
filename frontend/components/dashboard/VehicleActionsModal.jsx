@@ -20,7 +20,6 @@ export default function VehicleActionsModal({
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Manage Vehicle" size="sm">
       <div className="space-y-4">
-        {/* Vehicle Info */}
         <div className="p-3 bg-[rgb(var(--muted))] rounded-lg">
           <p className="font-semibold">{vehicle.title}</p>
           <p className="text-sm text-[rgb(var(--muted-foreground))]">

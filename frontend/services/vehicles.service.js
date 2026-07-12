@@ -5,7 +5,6 @@ export const vehiclesService = {
   // ============================================
   // GET: /api/cars/list/
   // Get all cars with filters
-  // Returns: { results: [...], owner_id, owner_username, is_favorite }
   // ============================================
   getAllCars: async (filters = {}) => {
     const response = await api.get("/cars/list/", {
@@ -17,11 +16,31 @@ export const vehiclesService = {
   // ============================================
   // GET: /api/cars/{id}
   // Get car details by ID
-  // Returns: { ..., owner_id, owner_username, is_favorite }
   // ============================================
   getCarById: async (id) => {
     const response = await api.get(`/cars/${id}`);
     return response.data;
+  },
+
+  // ============================================
+  // GET: /api/cars/manage/
+  // Get all cars owned by current user (requires JWT)
+  // ✅ NEW API: /api/cars/manage/
+  // ============================================
+  // services/vehicles.service.js
+  getMyCars: async () => {
+    try {
+      // ✅ API جدید: /api/cars/manage/
+      const response = await api.get("/cars/manage/");
+      console.log("✅ My cars fetched:", response.data);
+      return response.data;
+    } catch (error) {
+      console.error(
+        "❌ Error fetching my cars:",
+        error.response?.data || error,
+      );
+      throw error;
+    }
   },
 
   // ============================================
@@ -39,7 +58,7 @@ export const vehiclesService = {
 
   // ============================================
   // POST: /api/cars/{car_id}/favorite/
-  // Add car to favorites (requires JWT)
+  // Add car to favorites
   // ============================================
   addFavorite: async (carId) => {
     const response = await api.post(`/cars/${carId}/favorite/`);
@@ -48,7 +67,7 @@ export const vehiclesService = {
 
   // ============================================
   // DELETE: /api/cars/{car_id}/favorite/
-  // Remove car from favorites (requires JWT)
+  // Remove car from favorites
   // ============================================
   removeFavorite: async (carId) => {
     const response = await api.delete(`/cars/${carId}/favorite/`);
@@ -57,34 +76,36 @@ export const vehiclesService = {
 
   // ============================================
   // GET: /api/cars/favorites/
-  // Get all favorite cars (requires JWT)
-  // Returns: [{ id, car: {...}, created_at }]
+  // Get all favorite cars
   // ============================================
   getFavorites: async () => {
-    const response = await api.get("/cars/favorites/");
+    try {
+      const response = await api.get("/cars/favorites/");
 
-    // Transform response: extract car data from nested structure
-    if (
-      Array.isArray(response.data) &&
-      response.data.length > 0 &&
-      response.data[0].car
-    ) {
-      return response.data.map((item) => ({
-        ...item.car,
-        favorite_id: item.id,
-        favorited_at: item.created_at,
-      }));
-    }
+      if (
+        Array.isArray(response.data) &&
+        response.data.length > 0 &&
+        response.data[0].car
+      ) {
+        return response.data.map((item) => ({
+          ...item.car,
+          favorite_id: item.id,
+          favorited_at: item.created_at,
+        }));
+      }
 
-    if (Array.isArray(response.data)) {
+      if (response.data.results) {
+        return response.data.results;
+      }
+
       return response.data;
+    } catch (error) {
+      console.error(
+        "❌ Error fetching favorites:",
+        error.response?.data || error,
+      );
+      throw error;
     }
-
-    if (response.data.results) {
-      return response.data.results;
-    }
-
-    return response.data;
   },
 
   // ============================================
@@ -92,7 +113,7 @@ export const vehiclesService = {
   // Update car listing (owner only)
   // ============================================
   updateCar: async (id, data) => {
-    const response = await api.put(`/cars/manage/${id}`, data, {
+    const response = await api.put(`/cars/manage/${id}/`, data, {
       headers: {
         "Content-Type": "multipart/form-data",
       },
@@ -118,7 +139,7 @@ export const vehiclesService = {
   // Delete car listing (owner only)
   // ============================================
   deleteCar: async (id) => {
-    const response = await api.delete(`/cars/manage/${id}`);
+    const response = await api.delete(`/cars/manage/${id}/`);
     return response.data;
   },
 
@@ -147,11 +168,8 @@ export const vehiclesService = {
   // ============================================
   // DELETE: /api/cars/{image}/{image_id}
   // Delete specific image
-  // NOTE: API uses /cars/{car_id}/images/{image_id}/
   // ============================================
   deleteImage: async (carId, imageId) => {
-    // Based on API docs: DELETE /api/cars/{image}/{image_id}
-    // Using the correct endpoint format
     const response = await api.delete(`/cars/${carId}/images/${imageId}/`);
     return response.data;
   },
