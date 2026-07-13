@@ -1,7 +1,7 @@
 // components/common/Accordion.jsx
 "use client";
 
-import { useState, createContext, useContext } from "react";
+import React, { useState, createContext, useContext } from "react";
 import { ChevronDown } from "lucide-react";
 
 // ============================================
