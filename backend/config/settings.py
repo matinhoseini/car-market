@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     'cars',
     'django_filters',
     'chat',
+    "channels",
 ]
 
 
@@ -180,3 +181,4 @@ SIMPLE_JWT = {
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+ASGI_APPLICATION = "config.asgi.application"
