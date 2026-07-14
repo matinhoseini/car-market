@@ -22,6 +22,22 @@ import { vehiclesService } from "../../../services/vehicles.service";
 import { useFavorites } from "../../../hooks/useFavorites";
 import toast from "react-hot-toast";
 
+// ===== Import from helpers =====
+import {
+  getImageUrl,
+  getFirstImage,
+  getImageByIndex,
+} from "../../../helpers/image";
+import {
+  formatPrice,
+  formatMileage,
+  formatDate,
+  formatRelativeTime,
+  truncateText,
+} from "../../../helpers/format";
+import { getStorage } from "../../../helpers/storage";
+import { STORAGE_KEYS } from "../../../helpers/constants";
+
 export default function VehicleDetailClient({ car: initialCar }) {
   const router = useRouter();
   const [car, setCar] = useState(initialCar);
@@ -30,7 +46,7 @@ export default function VehicleDetailClient({ car: initialCar }) {
 
   // ===== Check if user is logged in =====
   useEffect(() => {
-    const token = localStorage.getItem("access_token");
+    const token = getStorage(STORAGE_KEYS.ACCESS_TOKEN);
     if (token) {
       setUser({ id: 1 });
     }
@@ -42,30 +58,9 @@ export default function VehicleDetailClient({ car: initialCar }) {
     car?.is_favorite || false,
   );
 
-  // ===== Format helpers =====
-  const formatPrice = (price) => {
-    return new Intl.NumberFormat("en-US").format(price);
-  };
-
-  const formatMileage = (mileage) => {
-    return new Intl.NumberFormat("en-US").format(mileage);
-  };
-
-  const getImageUrl = (imagePath) => {
-    if (!imagePath) return "";
-    if (imagePath.startsWith("/media/")) {
-      return `http://localhost:8000${imagePath}`;
-    }
-    return imagePath;
-  };
-
   const getOwnerName = () => {
-    if (car?.owner_username) {
-      return car.owner_username;
-    }
-    if (car?.owner_id) {
-      return `User #${car.owner_id}`;
-    }
+    if (car?.owner_username) return car.owner_username;
+    if (car?.owner_id) return `User #${car.owner_id}`;
     return "Unknown Seller";
   };
 
@@ -95,7 +90,6 @@ export default function VehicleDetailClient({ car: initialCar }) {
   return (
     <div className="min-h-[calc(100vh-80px)] bg-[rgb(var(--background))] py-8">
       <div className="container-custom">
-        {/* ===== Back Button ===== */}
         <button
           onClick={() => router.back()}
           className="flex items-center gap-2 text-[rgb(var(--muted-foreground))] hover:text-[rgb(var(--foreground))] transition mb-6"
@@ -110,7 +104,7 @@ export default function VehicleDetailClient({ car: initialCar }) {
             <div className="relative w-full h-80 md:h-96 bg-gray-100 rounded-xl overflow-hidden">
               {images.length > 0 ? (
                 <Image
-                  src={getImageUrl(images[activeImage]?.image)}
+                  src={getImageByIndex(car, activeImage)}
                   alt={car.title || "Car"}
                   fill
                   className="object-contain"
@@ -122,7 +116,6 @@ export default function VehicleDetailClient({ car: initialCar }) {
                 </div>
               )}
 
-              {/* ===== Owner Badge ===== */}
               <div className="absolute bottom-4 left-4 z-10">
                 <div className="flex items-center gap-2 px-3 py-2 bg-black/60 backdrop-blur-sm rounded-lg text-white">
                   <User className="w-4 h-4" />
@@ -135,7 +128,6 @@ export default function VehicleDetailClient({ car: initialCar }) {
                 </div>
               </div>
 
-              {/* ===== Favorite Button ===== */}
               <button
                 onClick={toggleFavorite}
                 disabled={isLoading}
@@ -201,7 +193,7 @@ export default function VehicleDetailClient({ car: initialCar }) {
             </div>
 
             <p className="text-3xl font-bold text-primary-500 mt-2">
-              ${formatPrice(car.price)}
+              {formatPrice(car.price)}
             </p>
 
             <div className="grid grid-cols-2 gap-3 mt-6">
