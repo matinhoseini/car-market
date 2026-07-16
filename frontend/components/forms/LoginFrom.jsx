@@ -31,7 +31,7 @@ export default function LoginForm() {
       localStorage.setItem("refresh_token", response.refresh);
       localStorage.setItem("user", JSON.stringify(response.user));
 
-      // ✅ این خط رو اضافه کن - باعث میشه هدر آپدیت بشه
+      // Dispatch storage event for header update
       window.dispatchEvent(new Event("storage"));
 
       toast.success("Welcome back! 🎉", {
