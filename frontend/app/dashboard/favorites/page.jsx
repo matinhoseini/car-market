@@ -1,13 +1,17 @@
 // app/dashboard/favorites/page.jsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { vehiclesService } from "@/services/vehicles.service";
-import VehicleCard from "@/components/vehicles/VehicleCard";
+import { vehiclesService } from "../../../services/vehicles.service";
+import VehicleCard from "../../../components/vehicles/VehicleCard";
 import toast from "react-hot-toast";
+
+// ===== Import helpers =====
+import { getStorage } from "../../../helpers/storage";
+import { STORAGE_KEYS } from "../../../helpers/constants";
 
 export default function FavoritesPage() {
   const router = useRouter();
@@ -16,7 +20,7 @@ export default function FavoritesPage() {
 
   // ===== Check authentication =====
   useEffect(() => {
-    const token = localStorage.getItem("access_token");
+    const token = getStorage(STORAGE_KEYS.ACCESS_TOKEN);
     if (!token) {
       router.push("/auth/login");
       return;
@@ -24,26 +28,16 @@ export default function FavoritesPage() {
   }, [router]);
 
   // ===== Fetch favorites =====
-  useEffect(() => {
-    fetchFavorites();
-  }, []);
-
-  const fetchFavorites = async () => {
+  const fetchFavorites = useCallback(async () => {
     setLoading(true);
     try {
       const data = await vehiclesService.getFavorites();
       console.log("📦 Processed favorites:", data);
 
-      // Ensure data is an array
       if (Array.isArray(data)) {
         setFavorites(data);
-      } else if (data && typeof data === "object") {
-        // If data is an object with results
-        if (data.results && Array.isArray(data.results)) {
-          setFavorites(data.results);
-        } else {
-          setFavorites([]);
-        }
+      } else if (data?.results && Array.isArray(data.results)) {
+        setFavorites(data.results);
       } else {
         setFavorites([]);
       }
@@ -54,7 +48,15 @@ export default function FavoritesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchFavorites();
+  }, [fetchFavorites]);
+
+  // ===== Memoized values =====
+  const favoritesCount = useMemo(() => favorites.length, [favorites]);
+  const hasFavorites = useMemo(() => favorites.length > 0, [favorites]);
 
   if (loading) {
     return (
@@ -78,14 +80,14 @@ export default function FavoritesPage() {
           <div>
             <h1 className="text-3xl font-bold font-heading">❤️ My Favorites</h1>
             <p className="text-[rgb(var(--muted-foreground))] mt-1">
-              {favorites.length} car{favorites.length !== 1 ? "s" : ""} in your
+              {favoritesCount} car{favoritesCount !== 1 ? "s" : ""} in your
               favorites list
             </p>
           </div>
         </div>
 
         {/* ===== Favorites Grid ===== */}
-        {favorites.length === 0 ? (
+        {!hasFavorites ? (
           <div className="card p-12 text-center">
             <div className="text-6xl mb-4">💔</div>
             <h3 className="text-xl font-semibold mb-2">No favorites yet</h3>
