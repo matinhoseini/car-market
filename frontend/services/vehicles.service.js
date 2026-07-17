@@ -17,9 +17,22 @@ export const vehiclesService = {
   // GET: /api/cars/{id}
   // Get car details by ID
   // ============================================
+  // services/vehicles.service.js
   getCarById: async (id) => {
-    const response = await api.get(`/cars/${id}`);
-    return response.data;
+    console.log("📡 getCarById called with id:", id);
+
+    // ✅ تست با آدرس ثابت
+    const testUrl = `/cars/2/`;
+    console.log("📡 Testing URL:", testUrl);
+
+    try {
+      const response = await api.get(testUrl);
+      console.log("✅ Response:", response.data);
+      return response.data;
+    } catch (error) {
+      console.error("❌ Error:", error.response?.status, error.response?.data);
+      throw error;
+    }
   },
 
   // ============================================
