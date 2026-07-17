@@ -1,12 +1,16 @@
 // components/dashboard/EditVehicleModal.jsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import Image from "next/image";
 import { Loader2, ImagePlus, X } from "lucide-react";
 import Modal from "../common/Modal";
 import { vehiclesService } from "../../services/vehicles.service";
 import toast from "react-hot-toast";
+
+// ===== Import helpers =====
+import { getImageUrl } from "../../helpers/image";
+import { FUEL_TYPES, GEARBOX_TYPES } from "../../helpers/constants";
 
 export default function EditVehicleModal({
   isOpen,
@@ -33,6 +37,7 @@ export default function EditVehicleModal({
     description: "",
   });
 
+  // ===== Load vehicle data =====
   useEffect(() => {
     if (vehicle) {
       setFormData({
@@ -48,137 +53,147 @@ export default function EditVehicleModal({
         description: vehicle.description || "",
       });
 
-      if (vehicle.images && vehicle.images.length > 0) {
-        setExistingImages(vehicle.images);
-      } else {
-        setExistingImages([]);
-      }
-
+      setExistingImages(vehicle.images || []);
       setImages([]);
       setImagePreviews([]);
       setImagesToDelete([]);
     }
   }, [vehicle]);
 
-  const handleImageChange = (e) => {
+  // ===== Memoized values =====
+  const fuelTypes = useMemo(() => FUEL_TYPES, []);
+  const gearboxTypes = useMemo(() => GEARBOX_TYPES, []);
+
+  const existingImageUrls = useMemo(() => {
+    return existingImages.map((img) => ({
+      ...img,
+      url: getImageUrl(img.image),
+    }));
+  }, [existingImages]);
+
+  // ===== Handlers =====
+  const handleImageChange = useCallback((e) => {
     const files = Array.from(e.target.files);
     setImages((prev) => [...prev, ...files]);
     const previews = files.map((file) => URL.createObjectURL(file));
     setImagePreviews((prev) => [...prev, ...previews]);
-  };
+  }, []);
 
-  const removeNewImage = (index) => {
+  const removeNewImage = useCallback((index) => {
     setImages((prev) => prev.filter((_, i) => i !== index));
     setImagePreviews((prev) => prev.filter((_, i) => i !== index));
-  };
+  }, []);
 
-  const removeExistingImage = (imageId) => {
+  const removeExistingImage = useCallback((imageId) => {
     setImagesToDelete((prev) => [...prev, imageId]);
     setExistingImages((prev) => prev.filter((img) => img.id !== imageId));
-  };
+  }, []);
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+  const handleChange = useCallback((e) => {
+    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  }, []);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
+  const handleSubmit = useCallback(
+    async (e) => {
+      e.preventDefault();
+      setLoading(true);
 
-    try {
-      // 1. Update car details (JSON)
-      await vehiclesService.updateCar(vehicle.id, formData);
+      try {
+        await vehiclesService.updateCar(vehicle.id, formData);
 
-      // 2. Delete removed images
-      for (const imageId of imagesToDelete) {
-        await vehiclesService.deleteImage(imageId);
+        for (const imageId of imagesToDelete) {
+          await vehiclesService.deleteImage(imageId);
+        }
+
+        for (const image of images) {
+          const formDataImage = new FormData();
+          formDataImage.append("image", image);
+          await vehiclesService.uploadImage(vehicle.id, formDataImage);
+        }
+
+        toast.success("Vehicle updated successfully!");
+        onUpdated?.();
+        onClose();
+      } catch (error) {
+        console.error(error);
+        toast.error(
+          error.response?.data?.message || "Failed to update vehicle",
+        );
+      } finally {
+        setLoading(false);
       }
+    },
+    [vehicle, formData, imagesToDelete, images, onUpdated, onClose],
+  );
 
-      // 3. Upload new images
-      for (const image of images) {
-        const formDataImage = new FormData();
-        formDataImage.append("image", image);
-        await vehiclesService.uploadImage(vehicle.id, formDataImage);
-      }
+  // ===== Memoized image sections =====
+  const existingImagesSection = useMemo(() => {
+    if (existingImageUrls.length === 0) return null;
 
-      toast.success("Vehicle updated successfully!");
-      onUpdated?.();
-      onClose();
-    } catch (error) {
-      console.error(error);
-      toast.error(error.response?.data?.message || "Failed to update vehicle");
-    } finally {
-      setLoading(false);
-    }
-  };
+    return (
+      <div className="grid grid-cols-2 gap-2 mb-3">
+        {existingImageUrls.map((img) => (
+          <div
+            key={img.id}
+            className="relative aspect-square rounded-lg overflow-hidden border border-[rgb(var(--border))] bg-gray-100"
+          >
+            <Image
+              src={img.url}
+              alt="Car"
+              fill
+              className="object-cover"
+              sizes="(max-width: 768px) 50vw, 25vw"
+            />
+            <button
+              type="button"
+              onClick={() => removeExistingImage(img.id)}
+              className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition shadow-md z-10"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        ))}
+      </div>
+    );
+  }, [existingImageUrls, removeExistingImage]);
 
-  const fuelTypes = ["gasoline", "diesel", "electric", "hybrid"];
-  const gearboxTypes = ["manual", "automatic", "cvt"];
+  const newImagesSection = useMemo(() => {
+    if (imagePreviews.length === 0) return null;
 
-  const getImageUrl = (imagePath) => {
-    if (!imagePath) return "";
-    if (imagePath.startsWith("/media/")) {
-      return `http://localhost:8000${imagePath}`;
-    }
-    return imagePath;
-  };
+    return (
+      <div className="grid grid-cols-2 gap-2 mb-3">
+        {imagePreviews.map((preview, index) => (
+          <div
+            key={index}
+            className="relative aspect-square rounded-lg overflow-hidden border border-[rgb(var(--border))] bg-gray-100"
+          >
+            <img
+              src={preview}
+              alt={`Preview ${index + 1}`}
+              className="w-full h-full object-cover"
+            />
+            <button
+              type="button"
+              onClick={() => removeNewImage(index)}
+              className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition shadow-md"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        ))}
+      </div>
+    );
+  }, [imagePreviews, removeNewImage]);
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Edit Vehicle" size="xl">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* LEFT: Images */}
+        {/* ===== LEFT: Images ===== */}
         <div>
           <label className="label">Images</label>
 
-          {existingImages.length > 0 && (
-            <div className="grid grid-cols-2 gap-2 mb-3">
-              {existingImages.map((img) => (
-                <div
-                  key={img.id}
-                  className="relative aspect-square rounded-lg overflow-hidden border border-[rgb(var(--border))] bg-gray-100"
-                >
-                  <Image
-                    src={getImageUrl(img.image)}
-                    alt="Car"
-                    fill
-                    className="object-cover"
-                    sizes="(max-width: 768px) 50vw, 25vw"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeExistingImage(img.id)}
-                    className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition shadow-md z-10"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {imagePreviews.length > 0 && (
-            <div className="grid grid-cols-2 gap-2 mb-3">
-              {imagePreviews.map((preview, index) => (
-                <div
-                  key={index}
-                  className="relative aspect-square rounded-lg overflow-hidden border border-[rgb(var(--border))] bg-gray-100"
-                >
-                  <img
-                    src={preview}
-                    alt={`Preview ${index + 1}`}
-                    className="w-full h-full object-cover"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeNewImage(index)}
-                    className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition shadow-md"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
+          {existingImagesSection}
+          {newImagesSection}
 
           <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 border-2 border-dashed border-[rgb(var(--border))] rounded-lg hover:border-primary-500 transition-colors w-full justify-center">
             <ImagePlus className="w-5 h-5 text-[rgb(var(--muted-foreground))]" />
@@ -198,7 +213,7 @@ export default function EditVehicleModal({
           </p>
         </div>
 
-        {/* RIGHT: Form */}
+        {/* ===== RIGHT: Form ===== */}
         <div>
           <form onSubmit={handleSubmit} className="space-y-3">
             <div>
@@ -293,8 +308,8 @@ export default function EditVehicleModal({
                   className="input"
                 >
                   {fuelTypes.map((t) => (
-                    <option key={t} value={t}>
-                      {t.charAt(0).toUpperCase() + t.slice(1)}
+                    <option key={t.value} value={t.value}>
+                      {t.label}
                     </option>
                   ))}
                 </select>
@@ -308,8 +323,8 @@ export default function EditVehicleModal({
                   className="input"
                 >
                   {gearboxTypes.map((t) => (
-                    <option key={t} value={t}>
-                      {t.charAt(0).toUpperCase() + t.slice(1)}
+                    <option key={t.value} value={t.value}>
+                      {t.label}
                     </option>
                   ))}
                 </select>

@@ -1,12 +1,15 @@
 // components/forms/VehicleForm.jsx
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { ImagePlus, X, Loader2 } from "lucide-react";
 import { vehiclesService } from "../../services/vehicles.service";
+
+// ===== Import helpers =====
+import { FUEL_TYPES, GEARBOX_TYPES } from "../../helpers/constants";
 
 export default function VehicleForm({ initialData = null, isEditing = false }) {
   const router = useRouter();
@@ -23,58 +26,92 @@ export default function VehicleForm({ initialData = null, isEditing = false }) {
     defaultValues: initialData || {},
   });
 
-  const handleImageChange = (e) => {
+  // ===== Memoized options =====
+  const fuelTypes = useMemo(() => FUEL_TYPES, []);
+  const gearboxTypes = useMemo(() => GEARBOX_TYPES, []);
+
+  // ===== Handlers (memoized) =====
+  const handleImageChange = useCallback((e) => {
     const files = Array.from(e.target.files);
     setImages((prev) => [...prev, ...files]);
     const previews = files.map((file) => URL.createObjectURL(file));
     setImagePreviews((prev) => [...prev, ...previews]);
-  };
+  }, []);
 
-  const removeImage = (index) => {
+  const removeImage = useCallback((index) => {
     setImages((prev) => prev.filter((_, i) => i !== index));
     setImagePreviews((prev) => prev.filter((_, i) => i !== index));
-  };
+  }, []);
 
-  const onSubmit = async (data) => {
-    setLoading(true);
+  const onSubmit = useCallback(
+    async (data) => {
+      setLoading(true);
 
-    try {
-      let car;
+      try {
+        let car;
 
-      if (isEditing && initialData?.id) {
-        car = await vehiclesService.updateCar(initialData.id, data);
-        toast.success("Vehicle updated successfully! 🎉");
-      } else {
-        car = await vehiclesService.createCar(data);
-        toast.success("Vehicle created! Uploading images...");
-      }
-
-      if (!isEditing && images.length > 0) {
-        for (const image of images) {
-          const formData = new FormData();
-          formData.append("image", image);
-          await vehiclesService.uploadImage(car.id, formData);
+        if (isEditing && initialData?.id) {
+          car = await vehiclesService.updateCar(initialData.id, data);
+          toast.success("Vehicle updated successfully! 🎉");
+        } else {
+          car = await vehiclesService.createCar(data);
+          toast.success("Vehicle created! Uploading images...");
         }
-        toast.success(`✅ ${images.length} image(s) uploaded!`);
+
+        if (!isEditing && images.length > 0) {
+          for (const image of images) {
+            const formData = new FormData();
+            formData.append("image", image);
+            await vehiclesService.uploadImage(car.id, formData);
+          }
+          toast.success(`✅ ${images.length} image(s) uploaded!`);
+        }
+
+        toast.success(
+          isEditing ? "Vehicle updated!" : "Vehicle added successfully! 🎉",
+        );
+        reset();
+        setImages([]);
+        setImagePreviews([]);
+        router.push("/dashboard");
+      } catch (err) {
+        console.error(err);
+        toast.error(err.response?.data?.message || "Failed to save vehicle");
+      } finally {
+        setLoading(false);
       }
+    },
+    [isEditing, initialData, images, reset, router],
+  );
 
-      toast.success(
-        isEditing ? "Vehicle updated!" : "Vehicle added successfully! 🎉",
-      );
-      reset();
-      setImages([]);
-      setImagePreviews([]);
-      router.push("/dashboard");
-    } catch (err) {
-      console.error(err);
-      toast.error(err.response?.data?.message || "Failed to save vehicle");
-    } finally {
-      setLoading(false);
-    }
-  };
+  // ===== Memoized image preview section (flex row) =====
+  const imagePreviewsSection = useMemo(() => {
+    if (imagePreviews.length === 0) return null;
 
-  const fuelTypes = ["gasoline", "diesel", "electric", "hybrid"];
-  const gearboxTypes = ["manual", "automatic", "cvt"];
+    return (
+      <div className="flex flex-wrap gap-2 mt-2">
+        {imagePreviews.map((preview, index) => (
+          <div
+            key={index}
+            className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-lg overflow-hidden border border-[rgb(var(--border))] flex-shrink-0"
+          >
+            <img
+              src={preview}
+              alt={`Preview ${index + 1}`}
+              className="w-full h-full object-cover"
+            />
+            <button
+              type="button"
+              onClick={() => removeImage(index)}
+              className="absolute top-1 right-1 p-0.5 bg-red-500 text-white rounded-full hover:bg-red-600 transition shadow-md"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        ))}
+      </div>
+    );
+  }, [imagePreviews, removeImage]);
 
   return (
     <div className="min-h-[calc(100vh-80px)] bg-[rgb(var(--background))] py-8 flex items-center justify-center">
@@ -84,14 +121,16 @@ export default function VehicleForm({ initialData = null, isEditing = false }) {
             {isEditing ? "✏️ Edit Vehicle" : "🚗 Add Vehicle"}
           </h1>
 
+          {/* ===== Image Upload (only for new) ===== */}
           {!isEditing && (
             <div>
               <label className="label">Images</label>
-              <div className="flex items-center gap-4 flex-wrap">
-                <label className="cursor-pointer">
-                  <div className="w-32 h-32 border-2 border-dashed border-[rgb(var(--border))] rounded-xl flex flex-col items-center justify-center hover:border-primary-500 transition-colors">
+              <div className="flex items-start gap-4 flex-wrap">
+                {/* Add Image Button - Left */}
+                <label className="cursor-pointer flex-shrink-0">
+                  <div className="w-24 h-24 sm:w-28 sm:h-28 border-2 border-dashed border-[rgb(var(--border))] rounded-xl flex flex-col items-center justify-center hover:border-primary-500 transition-colors">
                     <ImagePlus className="w-8 h-8 text-[rgb(var(--muted-foreground))]" />
-                    <span className="text-xs text-[rgb(var(--muted-foreground))] mt-1">
+                    <span className="text-xs text-[rgb(var(--muted-foreground))] mt-1 text-center px-1">
                       Add Image
                     </span>
                   </div>
@@ -104,25 +143,8 @@ export default function VehicleForm({ initialData = null, isEditing = false }) {
                   />
                 </label>
 
-                {imagePreviews.map((preview, index) => (
-                  <div
-                    key={index}
-                    className="relative w-32 h-32 rounded-xl overflow-hidden border border-[rgb(var(--border))]"
-                  >
-                    <img
-                      src={preview}
-                      alt={`Preview ${index + 1}`}
-                      className="w-full h-full object-cover"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removeImage(index)}
-                      className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
+                {/* Image Previews - Right */}
+                {imagePreviewsSection}
               </div>
               <p className="text-sm text-[rgb(var(--muted-foreground))] mt-2">
                 You can add multiple images
@@ -130,7 +152,7 @@ export default function VehicleForm({ initialData = null, isEditing = false }) {
             </div>
           )}
 
-          {/* Title */}
+          {/* ===== Title ===== */}
           <div>
             <label className="label">Title</label>
             <input
@@ -145,7 +167,7 @@ export default function VehicleForm({ initialData = null, isEditing = false }) {
             )}
           </div>
 
-          {/* Brand & Model */}
+          {/* ===== Brand & Model ===== */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="label">Brand</label>
@@ -175,7 +197,7 @@ export default function VehicleForm({ initialData = null, isEditing = false }) {
             </div>
           </div>
 
-          {/* Year & Price */}
+          {/* ===== Year & Price ===== */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="label">Year</label>
@@ -217,7 +239,7 @@ export default function VehicleForm({ initialData = null, isEditing = false }) {
             </div>
           </div>
 
-          {/* Mileage & City */}
+          {/* ===== Mileage & City ===== */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="label">Mileage (km)</label>
@@ -251,7 +273,7 @@ export default function VehicleForm({ initialData = null, isEditing = false }) {
             </div>
           </div>
 
-          {/* Fuel Type & Gearbox */}
+          {/* ===== Fuel Type & Gearbox ===== */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="label">Fuel Type</label>
@@ -261,9 +283,10 @@ export default function VehicleForm({ initialData = null, isEditing = false }) {
                   required: "Fuel type is required",
                 })}
               >
+                <option value="">Select fuel type</option>
                 {fuelTypes.map((t) => (
-                  <option key={t} value={t}>
-                    {t.charAt(0).toUpperCase() + t.slice(1)}
+                  <option key={t.value} value={t.value}>
+                    {t.label}
                   </option>
                 ))}
               </select>
@@ -279,9 +302,10 @@ export default function VehicleForm({ initialData = null, isEditing = false }) {
                 className="input"
                 {...register("gearbox", { required: "Gearbox is required" })}
               >
+                <option value="">Select gearbox</option>
                 {gearboxTypes.map((t) => (
-                  <option key={t} value={t}>
-                    {t.charAt(0).toUpperCase() + t.slice(1)}
+                  <option key={t.value} value={t.value}>
+                    {t.label}
                   </option>
                 ))}
               </select>
@@ -293,7 +317,7 @@ export default function VehicleForm({ initialData = null, isEditing = false }) {
             </div>
           </div>
 
-          {/* Description */}
+          {/* ===== Description ===== */}
           <div>
             <label className="label">Description</label>
             <textarea
@@ -311,6 +335,7 @@ export default function VehicleForm({ initialData = null, isEditing = false }) {
             )}
           </div>
 
+          {/* ===== Submit ===== */}
           <button
             type="submit"
             disabled={loading}
