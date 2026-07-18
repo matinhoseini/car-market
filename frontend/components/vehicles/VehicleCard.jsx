@@ -3,13 +3,25 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { Heart, MapPin, Calendar, Fuel, Gauge, Users } from "lucide-react";
+import {
+  Heart,
+  MapPin,
+  Calendar,
+  Fuel,
+  Gauge,
+  Users,
+  MoreVertical,
+} from "lucide-react";
 import { useState, useMemo, useCallback } from "react";
 import { useFavorites } from "@/hooks/useFavorites";
 import { getFirstImage } from "@/helpers/image";
 import { formatPrice, formatMileage } from "@/helpers/format";
 
-export default function VehicleCard({ car }) {
+export default function VehicleCard({
+  car,
+  showActions = false,
+  onActionClick = null,
+}) {
   const [imgError, setImgError] = useState(false);
 
   // ===== Memoized values =====
@@ -40,6 +52,15 @@ export default function VehicleCard({ car }) {
     setImgError(true);
   }, []);
 
+  const handleActionClick = useCallback(
+    (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (onActionClick) onActionClick(car);
+    },
+    [car, onActionClick],
+  );
+
   // ===== Memoized car specs =====
   const carSpecs = useMemo(
     () => [
@@ -52,6 +73,7 @@ export default function VehicleCard({ car }) {
   );
 
   const hasImage = imageUrl && !imgError;
+  const showFavoriteButton = !showActions;
 
   return (
     <div className="group relative bg-[rgb(var(--card))] rounded-xl border border-[rgb(var(--border))] overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 will-change-transform h-full flex flex-col">
@@ -104,23 +126,36 @@ export default function VehicleCard({ car }) {
             </div>
           )}
 
+          {/* ===== Actions Button (Dashboard Only) ===== */}
+          {showActions && onActionClick && (
+            <button
+              onClick={handleActionClick}
+              className="absolute top-3 right-3 p-2 bg-[rgb(var(--card))] rounded-full shadow-md hover:scale-105 transition border border-[rgb(var(--border))] z-20"
+              aria-label="Vehicle actions"
+            >
+              <MoreVertical className="w-5 h-5 text-[rgb(var(--foreground))]" />
+            </button>
+          )}
+
           {/* ===== Favorite Button ===== */}
-          <button
-            onClick={handleFavoriteClick}
-            disabled={isLoading}
-            className={`absolute top-3 right-3 p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-md hover:scale-110 transition-transform z-10 ${
-              isLoading ? "opacity-50 cursor-not-allowed" : ""
-            }`}
-            aria-label="Toggle favorite"
-          >
-            <Heart
-              className={`w-5 h-5 transition-all ${
-                isLiked
-                  ? "fill-red-500 text-red-500"
-                  : "text-gray-600 hover:text-red-500"
-              } ${isLoading ? "animate-spin" : ""}`}
-            />
-          </button>
+          {showFavoriteButton && (
+            <button
+              onClick={handleFavoriteClick}
+              disabled={isLoading}
+              className={`absolute top-3 right-3 p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-md hover:scale-110 transition-transform z-10 ${
+                isLoading ? "opacity-50 cursor-not-allowed" : ""
+              }`}
+              aria-label="Toggle favorite"
+            >
+              <Heart
+                className={`w-5 h-5 transition-all ${
+                  isLiked
+                    ? "fill-red-500 text-red-500"
+                    : "text-gray-600 hover:text-red-500"
+                } ${isLoading ? "animate-spin" : ""}`}
+              />
+            </button>
+          )}
         </div>
       </Link>
 
