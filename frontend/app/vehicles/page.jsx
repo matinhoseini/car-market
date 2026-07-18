@@ -1,104 +1,259 @@
+// app/vehicles/page.jsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Search, Filter, X, ChevronDown } from "lucide-react";
 import VehicleCard from "../../components/vehicles/VehicleCard";
 import { vehiclesService } from "../../services/vehicles.service";
 
-function Loading() {
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-      {[...Array(8)].map((_, i) => (
-        <div key={i} className="card p-4 animate-pulse">
-          <div className="w-full h-48 bg-gray-200 rounded-lg"></div>
-          <div className="h-4 bg-gray-200 rounded mt-3 w-3/4"></div>
-          <div className="h-4 bg-gray-200 rounded mt-2 w-1/2"></div>
-        </div>
-      ))}
-    </div>
-  );
-}
+// ===== Import helpers =====
+import {
+  FUEL_TYPES,
+  GEARBOX_TYPES,
+  YEARS,
+  ORDER_OPTIONS,
+} from "../../helpers/constants";
+
+// ===== Loading component =====
+const Loading = () => (
+  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+    {[...Array(8)].map((_, i) => (
+      <div key={i} className="card p-4 animate-pulse">
+        <div className="w-full h-48 bg-gray-200 rounded-lg"></div>
+        <div className="h-4 bg-gray-200 rounded mt-3 w-3/4"></div>
+        <div className="h-4 bg-gray-200 rounded mt-2 w-1/2"></div>
+      </div>
+    ))}
+  </div>
+);
+
+// ===== Initial filter state =====
+const INITIAL_FILTERS = {
+  brand: "",
+  min_price: "",
+  max_price: "",
+  fuel_type: "",
+  year: "",
+  gearbox: "",
+  city: "",
+  ordering: "",
+};
 
 export default function VehiclesPage() {
   const [cars, setCars] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState(INITIAL_FILTERS);
 
-  const [filters, setFilters] = useState({
-    brand: "",
-    min_price: "",
-    max_price: "",
-    fuel_type: "",
-    year: "",
-    gearbox: "",
-    city: "",
-    ordering: "",
-  });
+  // ===== Memoized computed values =====
+  const hasFilters = useMemo(() => {
+    return Object.values(filters).some((v) => v !== "");
+  }, [filters]);
 
-  const fetchCars = async (extra = {}) => {
-    setLoading(true);
-    try {
-      const allFilters = { ...filters, ...extra };
-      const clean = Object.fromEntries(
-        Object.entries(allFilters).filter(([_, v]) => v !== ""),
-      );
-      const data = await vehiclesService.getAllCars(clean);
-      setCars(data.results || []);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const carsCount = useMemo(() => cars.length, [cars]);
 
+  // ===== Memoized filter options from helpers =====
+  const fuelTypes = useMemo(() => FUEL_TYPES, []);
+  const gearboxTypes = useMemo(() => GEARBOX_TYPES, []);
+  const years = useMemo(() => YEARS, []);
+  const orderOptions = useMemo(() => ORDER_OPTIONS, []);
+
+  // ===== Fetch cars =====
+  const fetchCars = useCallback(
+    async (extra = {}) => {
+      setLoading(true);
+      try {
+        const allFilters = { ...filters, ...extra };
+        const clean = Object.fromEntries(
+          Object.entries(allFilters).filter(([_, v]) => v !== ""),
+        );
+        const data = await vehiclesService.getAllCars(clean);
+        setCars(data.results || []);
+      } catch (err) {
+        console.error("Error fetching cars:", err);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [filters],
+  );
+
+  // ===== Initial fetch =====
   useEffect(() => {
     fetchCars();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const changeFilter = (key, value) => {
-    const newFilters = { ...filters, [key]: value };
-    setFilters(newFilters);
-    fetchCars(newFilters);
-    if (key !== "ordering") {
-      // Reset ordering when changing other filters
-    }
-  };
+  // ===== Handlers =====
+  const handleSearch = useCallback(
+    (e) => {
+      e.preventDefault();
+      fetchCars({ ...filters, search });
+    },
+    [filters, search, fetchCars],
+  );
 
-  const clearAll = () => {
-    const empty = {
-      brand: "",
-      min_price: "",
-      max_price: "",
-      fuel_type: "",
-      year: "",
-      gearbox: "",
-      city: "",
-      ordering: "",
-    };
-    setFilters(empty);
+  const changeFilter = useCallback(
+    (key, value) => {
+      const newFilters = { ...filters, [key]: value };
+      setFilters(newFilters);
+      fetchCars(newFilters);
+    },
+    [filters, fetchCars],
+  );
+
+  const clearAll = useCallback(() => {
+    setFilters(INITIAL_FILTERS);
     setSearch("");
     setShowFilters(false);
-    fetchCars(empty);
-  };
+    fetchCars(INITIAL_FILTERS);
+  }, [fetchCars]);
 
-  const handleSearch = (e) => {
-    e.preventDefault();
-    fetchCars({ ...filters, search });
-  };
+  const toggleFilters = useCallback(() => {
+    setShowFilters((prev) => !prev);
+  }, []);
 
-  const hasFilters = Object.values(filters).some((v) => v !== "");
+  const closeFilters = useCallback(() => {
+    setShowFilters(false);
+  }, []);
 
-  const fuelTypes = ["gasoline", "diesel", "electric", "hybrid"];
-  const gearboxTypes = ["manual", "automatic", "cvt"];
-  const years = [2025, 2024, 2023, 2022, 2021, 2020];
-  const orderOptions = [
-    { value: "", label: "Default" },
-    { value: "-price", label: "Most Expensive" },
-    { value: "price", label: "Cheapest" },
-    { value: "-year", label: "Newest" },
-  ];
+  // ===== Memoized filter panel =====
+  const filterPanel = useMemo(() => {
+    if (!showFilters) return null;
 
+    return (
+      <div className="card p-4 md:p-6 mb-6 relative">
+        <button
+          onClick={closeFilters}
+          className="absolute top-3 right-3 p-1.5 rounded-lg hover:bg-[rgb(var(--muted))] transition"
+          aria-label="Close filters"
+        >
+          <X className="w-5 h-5 text-[rgb(var(--muted-foreground))]" />
+        </button>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Brand */}
+          <div>
+            <label className="label text-xs">Brand</label>
+            <input
+              type="text"
+              placeholder="e.g. Toyota"
+              value={filters.brand}
+              onChange={(e) => changeFilter("brand", e.target.value)}
+              className="input py-1.5 text-sm"
+            />
+          </div>
+
+          {/* Min Price */}
+          <div>
+            <label className="label text-xs">Min Price</label>
+            <input
+              type="number"
+              placeholder="Min price"
+              value={filters.min_price}
+              onChange={(e) => changeFilter("min_price", e.target.value)}
+              className="input py-1.5 text-sm"
+            />
+          </div>
+
+          {/* Max Price */}
+          <div>
+            <label className="label text-xs">Max Price</label>
+            <input
+              type="number"
+              placeholder="Max price"
+              value={filters.max_price}
+              onChange={(e) => changeFilter("max_price", e.target.value)}
+              className="input py-1.5 text-sm"
+            />
+          </div>
+
+          {/* Fuel Type (from helpers) */}
+          <div>
+            <label className="label text-xs">Fuel Type</label>
+            <select
+              value={filters.fuel_type}
+              onChange={(e) => changeFilter("fuel_type", e.target.value)}
+              className="input py-1.5 text-sm"
+            >
+              <option value="">All fuels</option>
+              {fuelTypes.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Gearbox (from helpers) */}
+          <div>
+            <label className="label text-xs">Gearbox</label>
+            <select
+              value={filters.gearbox}
+              onChange={(e) => changeFilter("gearbox", e.target.value)}
+              className="input py-1.5 text-sm"
+            >
+              <option value="">All types</option>
+              {gearboxTypes.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Year (from helpers) */}
+          <div>
+            <label className="label text-xs">Year</label>
+            <select
+              value={filters.year}
+              onChange={(e) => changeFilter("year", e.target.value)}
+              className="input py-1.5 text-sm"
+            >
+              <option value="">All years</option>
+              {years.map((y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* City */}
+          <div>
+            <label className="label text-xs">City</label>
+            <input
+              type="text"
+              placeholder="e.g. Tehran"
+              value={filters.city}
+              onChange={(e) => changeFilter("city", e.target.value)}
+              className="input py-1.5 text-sm"
+            />
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-3 mt-4 pt-4 border-t border-[rgb(var(--border))]">
+          <button onClick={clearAll} className="btn-outline btn-sm">
+            Clear All
+          </button>
+          <button onClick={closeFilters} className="btn-primary btn-sm">
+            Apply Filters
+          </button>
+        </div>
+      </div>
+    );
+  }, [
+    showFilters,
+    filters,
+    changeFilter,
+    clearAll,
+    closeFilters,
+    fuelTypes,
+    gearboxTypes,
+    years,
+  ]);
+
+  // ===== Render =====
   return (
     <div className="bg-[rgb(var(--background))] py-8">
       <div className="container-custom">
@@ -107,7 +262,7 @@ export default function VehiclesPage() {
           <div>
             <h1 className="text-2xl font-bold font-heading">🚗 All Vehicles</h1>
             <p className="text-sm text-[rgb(var(--muted-foreground))] mt-1">
-              {cars.length} vehicles found
+              {carsCount} vehicles found
             </p>
           </div>
 
@@ -131,7 +286,7 @@ export default function VehiclesPage() {
         {/* ===== Filter Bar ===== */}
         <div className="flex flex-wrap items-center gap-2 mb-6">
           <button
-            onClick={() => setShowFilters(!showFilters)}
+            onClick={toggleFilters}
             className="btn-outline btn-sm flex items-center gap-1"
           >
             <Filter className="w-4 h-4" />
@@ -167,122 +322,7 @@ export default function VehiclesPage() {
         </div>
 
         {/* ===== Filter Panel ===== */}
-        {showFilters && (
-          <div className="card p-4 md:p-6 mb-6 relative">
-            <button
-              onClick={() => setShowFilters(false)}
-              className="absolute top-3 right-3 p-1.5 rounded-lg hover:bg-[rgb(var(--muted))] transition"
-            >
-              <X className="w-5 h-5 text-[rgb(var(--muted-foreground))]" />
-            </button>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div>
-                <label className="label text-xs">Brand</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Toyota"
-                  value={filters.brand}
-                  onChange={(e) => changeFilter("brand", e.target.value)}
-                  className="input py-1.5 text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="label text-xs">Min Price</label>
-                <input
-                  type="number"
-                  placeholder="Min price"
-                  value={filters.min_price}
-                  onChange={(e) => changeFilter("min_price", e.target.value)}
-                  className="input py-1.5 text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="label text-xs">Max Price</label>
-                <input
-                  type="number"
-                  placeholder="Max price"
-                  value={filters.max_price}
-                  onChange={(e) => changeFilter("max_price", e.target.value)}
-                  className="input py-1.5 text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="label text-xs">Fuel Type</label>
-                <select
-                  value={filters.fuel_type}
-                  onChange={(e) => changeFilter("fuel_type", e.target.value)}
-                  className="input py-1.5 text-sm"
-                >
-                  <option value="">All fuels</option>
-                  {fuelTypes.map((t) => (
-                    <option key={t} value={t}>
-                      {t.charAt(0).toUpperCase() + t.slice(1)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="label text-xs">Gearbox</label>
-                <select
-                  value={filters.gearbox}
-                  onChange={(e) => changeFilter("gearbox", e.target.value)}
-                  className="input py-1.5 text-sm"
-                >
-                  <option value="">All types</option>
-                  {gearboxTypes.map((t) => (
-                    <option key={t} value={t}>
-                      {t.charAt(0).toUpperCase() + t.slice(1)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="label text-xs">Year</label>
-                <select
-                  value={filters.year}
-                  onChange={(e) => changeFilter("year", e.target.value)}
-                  className="input py-1.5 text-sm"
-                >
-                  <option value="">All years</option>
-                  {years.map((y) => (
-                    <option key={y} value={y}>
-                      {y}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="label text-xs">City</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Tehran"
-                  value={filters.city}
-                  onChange={(e) => changeFilter("city", e.target.value)}
-                  className="input py-1.5 text-sm"
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-3 mt-4 pt-4 border-t border-[rgb(var(--border))]">
-              <button onClick={clearAll} className="btn-outline btn-sm">
-                Clear All
-              </button>
-              <button
-                onClick={() => setShowFilters(false)}
-                className="btn-primary btn-sm"
-              >
-                Apply Filters
-              </button>
-            </div>
-          </div>
-        )}
+        {filterPanel}
 
         {/* ===== Vehicles Grid ===== */}
         {loading ? (
