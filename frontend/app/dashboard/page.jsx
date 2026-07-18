@@ -15,26 +15,18 @@ import {
   Heart,
   ShoppingBag,
   PlusCircle,
-  MoreVertical,
 } from "lucide-react";
 import { authService } from "../../services/auth.service";
 import { vehiclesService } from "../../services/vehicles.service";
 import toast from "react-hot-toast";
 import VehicleActionsModal from "../../components/dashboard/VehicleActionsModal";
 import EditVehicleModal from "../../components/dashboard/EditVehicleModal";
+import VehicleCard from "../../components/vehicles/VehicleCard";
 
 // ===== Import helpers =====
 import { formatPrice } from "../../helpers/format";
-import { getImageUrl } from "../../helpers/image";
 import { getStorage, removeStorage } from "../../helpers/storage";
 import { STORAGE_KEYS } from "../../helpers/constants";
-
-// ===== Initial stats =====
-const INITIAL_STATS = {
-  vehicles: 0,
-  favorites: 0,
-  orders: 0,
-};
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -204,20 +196,6 @@ export default function DashboardPage() {
     [stats],
   );
 
-  // ===== Memoized vehicle card =====
-  const vehicleCards = useMemo(() => {
-    if (myCars.length === 0) return null;
-
-    return myCars.map((car) => ({
-      id: car.id,
-      title: car.title || `${car.brand} ${car.model}`,
-      price: formatPrice(car.price),
-      year: car.year,
-      fuel_type: car.fuel_type,
-      image: getImageUrl(car.images?.[0]?.image),
-    }));
-  }, [myCars]);
-
   // ===== Memoized profile details =====
   const profileDetails = useMemo(() => {
     if (!user) return [];
@@ -292,7 +270,6 @@ export default function DashboardPage() {
         </div>
 
         {/* ===== My Vehicles Section ===== */}
-        {/* ===== My Vehicles Section ===== */}
         <div className="mb-8">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-bold font-heading">🚗 My Vehicles</h2>
@@ -324,49 +301,18 @@ export default function DashboardPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {vehicleCards?.map((car) => (
-                <div key={car.id} className="card card-hover overflow-hidden">
-                  <div className="relative w-full h-40 bg-gray-100">
-                    {car.image ? (
-                      <img
-                        src={car.image}
-                        alt={car.title}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-4xl text-gray-400">
-                        🚗
-                      </div>
-                    )}
-
-                    {/* ✅ دکمه سه نقطه اصلاح‌شده */}
-                    <button
-                      onClick={() =>
-                        openActions(myCars.find((c) => c.id === car.id))
-                      }
-                      className="absolute top-2 right-2 p-1.5 bg-[rgb(var(--card))] rounded-full shadow-md hover:scale-105 transition border border-[rgb(var(--border))]"
-                      aria-label="Vehicle actions"
-                    >
-                      <MoreVertical className="w-5 h-5 text-[rgb(var(--foreground))]" />
-                    </button>
-                  </div>
-
-                  <div className="p-4">
-                    <h3 className="font-semibold text-sm line-clamp-1">
-                      {car.title}
-                    </h3>
-                    <p className="text-lg font-bold text-primary-500">
-                      {car.price}
-                    </p>
-                    <p className="text-xs text-[rgb(var(--muted-foreground))]">
-                      {car.year} • {car.fuel_type}
-                    </p>
-                  </div>
-                </div>
+              {myCars.map((car) => (
+                <VehicleCard
+                  key={car.id}
+                  car={car}
+                  showActions={true}
+                  onActionClick={openActions}
+                />
               ))}
             </div>
           )}
         </div>
+
         {/* ===== Profile ===== */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="card p-6 lg:col-span-1">
