@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
 export default function Modal({
@@ -14,7 +15,7 @@ export default function Modal({
 }) {
   const modalRef = useRef(null);
 
-  // Close on Escape key
+  // ===== Close on Escape key =====
   useEffect(() => {
     const handleEscape = (e) => {
       if (e.key === "Escape") onClose();
@@ -29,15 +30,17 @@ export default function Modal({
     };
   }, [isOpen, onClose]);
 
-  // Close on click outside
+  // ===== Close on click outside =====
   const handleBackdropClick = (e) => {
     if (modalRef.current && !modalRef.current.contains(e.target)) {
       onClose();
     }
   };
 
+  // ===== If not open, return null =====
   if (!isOpen) return null;
 
+  // ===== Size classes =====
   const sizeClasses = {
     sm: "max-w-md",
     md: "max-w-lg",
@@ -46,7 +49,8 @@ export default function Modal({
     full: "max-w-6xl",
   };
 
-  return (
+  // ===== Modal content =====
+  const modalContent = (
     <div
       className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in p-4"
       onClick={handleBackdropClick}
@@ -75,4 +79,7 @@ export default function Modal({
       </div>
     </div>
   );
+
+  // ===== Render with createPortal =====
+  return createPortal(modalContent, document.body);
 }

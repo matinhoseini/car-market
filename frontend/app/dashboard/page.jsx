@@ -292,6 +292,7 @@ export default function DashboardPage() {
         </div>
 
         {/* ===== My Vehicles Section ===== */}
+        {/* ===== My Vehicles Section ===== */}
         <div className="mb-8">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-bold font-heading">🚗 My Vehicles</h2>
@@ -337,15 +338,19 @@ export default function DashboardPage() {
                         🚗
                       </div>
                     )}
+
+                    {/* ✅ دکمه سه نقطه اصلاح‌شده */}
                     <button
                       onClick={() =>
                         openActions(myCars.find((c) => c.id === car.id))
                       }
-                      className="absolute top-2 right-2 p-1.5 bg-white/90 backdrop-blur-sm rounded-full shadow-md hover:scale-105 transition"
+                      className="absolute top-2 right-2 p-1.5 bg-[rgb(var(--card))] rounded-full shadow-md hover:scale-105 transition border border-[rgb(var(--border))]"
+                      aria-label="Vehicle actions"
                     >
-                      <MoreVertical className="w-5 h-5" />
+                      <MoreVertical className="w-5 h-5 text-[rgb(var(--foreground))]" />
                     </button>
                   </div>
+
                   <div className="p-4">
                     <h3 className="font-semibold text-sm line-clamp-1">
                       {car.title}
@@ -362,7 +367,6 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
-
         {/* ===== Profile ===== */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="card p-6 lg:col-span-1">
