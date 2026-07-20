@@ -60,5 +60,6 @@ export default async function VehicleDetailPage({ params }) {
   }
 }
 
+export const dynamicParams = true;
 // ===== ISR: Revalidate every 60 seconds =====
 export const revalidate = 60;

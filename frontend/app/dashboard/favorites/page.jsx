@@ -1,6 +1,9 @@
 // app/dashboard/favorites/page.jsx
 "use client";
 
+// app/dashboard/favorites/page.jsx
+"use client";
+
 import { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";

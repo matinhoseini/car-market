@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo, memo } from "react";
 import {
   Car,
   User,
@@ -19,7 +19,7 @@ import {
 import DarkToggle from "./DarkToggle";
 import { useRouter, usePathname } from "next/navigation";
 
-export default function Header() {
+const Header = memo(() => {
   const router = useRouter();
   const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -30,8 +30,31 @@ export default function Header() {
   const [user, setUser] = useState(null);
   const userMenuRef = useRef(null);
 
-  // ===== Check login status =====
-  const checkAuth = () => {
+  // ===== Memoized navigation items =====
+  const navItems = useMemo(
+    () => [
+      { href: "/vehicles", label: "Vehicles", icon: CarFront },
+      { href: "/about", label: "About", icon: Info },
+    ],
+    [],
+  );
+
+  const protectedNavItems = useMemo(
+    () => [
+      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+      {
+        href: "/dashboard/add-vehicle",
+        label: "Add Vehicle",
+        icon: PlusCircle,
+      },
+      { href: "/dashboard/favorites", label: "Favorites", icon: Heart },
+      { href: "/dashboard/profile", label: "Profile", icon: Settings },
+    ],
+    [],
+  );
+
+  // ===== Check authentication status =====
+  const checkAuth = useCallback(() => {
     const token = localStorage.getItem("access_token");
     const userData = localStorage.getItem("user");
     if (token && userData) {
@@ -46,14 +69,14 @@ export default function Header() {
       setIsLoggedIn(false);
       setUser(null);
     }
-  };
+  }, []);
 
-  // ===== Check on mount AND every time pathname changes =====
+  // ===== Check auth on mount and route change =====
   useEffect(() => {
     checkAuth();
-  }, [pathname]);
+  }, [pathname, checkAuth]);
 
-  // ===== Also listen for storage changes =====
+  // ===== Listen for storage changes (login/logout from other tabs) =====
   useEffect(() => {
     const handleStorageChange = () => {
       checkAuth();
@@ -62,9 +85,9 @@ export default function Header() {
     return () => {
       window.removeEventListener("storage", handleStorageChange);
     };
-  }, []);
+  }, [checkAuth]);
 
-  // ===== Control scroll =====
+  // ===== Control header visibility on scroll =====
   useEffect(() => {
     const controlHeader = () => {
       const currentScrollY = window.scrollY;
@@ -80,7 +103,7 @@ export default function Header() {
     return () => window.removeEventListener("scroll", controlHeader);
   }, [lastScrollY]);
 
-  // ===== Click outside user menu =====
+  // ===== Close user menu when clicking outside =====
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
@@ -91,7 +114,7 @@ export default function Header() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // ===== Lock scroll when menu is open =====
+  // ===== Lock body scroll when mobile menu is open =====
   useEffect(() => {
     if (isMenuOpen) {
       document.body.style.overflow = "hidden";
@@ -103,8 +126,8 @@ export default function Header() {
     };
   }, [isMenuOpen]);
 
-  // ===== Logout handler =====
-  const handleLogout = () => {
+  // ===== Handle logout =====
+  const handleLogout = useCallback(() => {
     localStorage.removeItem("access_token");
     localStorage.removeItem("refresh_token");
     localStorage.removeItem("user");
@@ -112,29 +135,29 @@ export default function Header() {
     setUser(null);
     setIsUserMenuOpen(false);
     router.push("/");
-  };
+  }, [router]);
 
-  // ===== Handle dashboard click with token check =====
-  const handleDashboardClick = (e) => {
-    const token = localStorage.getItem("access_token");
-    if (!token) {
-      e.preventDefault();
-      router.push("/auth/register");
-    }
-    setIsMenuOpen(false);
-  };
+  // ===== Handle dashboard click with token validation =====
+  const handleDashboardClick = useCallback(
+    (e) => {
+      const token = localStorage.getItem("access_token");
+      if (!token) {
+        e.preventDefault();
+        router.push("/auth/register");
+      }
+      setIsMenuOpen(false);
+    },
+    [router],
+  );
 
-  // ===== Nav items =====
-  const navItems = [
-    { href: "/vehicles", label: "Vehicles", icon: CarFront },
-    { href: "/about", label: "About", icon: Info },
-  ];
+  // ===== Toggle menu handlers =====
+  const toggleMenu = useCallback(() => {
+    setIsMenuOpen((prev) => !prev);
+  }, []);
 
-  const protectedNavItems = [
-    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/dashboard/add-vehicle", label: "Add Vehicle", icon: PlusCircle },
-    { href: "/dashboard/favorites", label: "Favorites", icon: Heart },
-  ];
+  const toggleUserMenu = useCallback(() => {
+    setIsUserMenuOpen((prev) => !prev);
+  }, []);
 
   return (
     <>
@@ -172,7 +195,6 @@ export default function Header() {
                 </Link>
               ))}
 
-              {/* ===== Dashboard - with token check ===== */}
               <Link
                 href="/dashboard"
                 onClick={handleDashboardClick}
@@ -194,14 +216,14 @@ export default function Header() {
                 ))}
             </nav>
 
-            {/* ===== Right Side ===== */}
+            {/* ===== Right side actions ===== */}
             <div className="flex items-center gap-1.5 md:gap-2 lg:gap-2">
               <DarkToggle />
 
               {isLoggedIn && user ? (
                 <div className="relative" ref={userMenuRef}>
                   <button
-                    onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                    onClick={toggleUserMenu}
                     className="flex items-center gap-1.5 md:gap-2 px-1.5 md:px-2 py-1 rounded-full hover:bg-[rgb(var(--muted))] transition-all duration-200 hover:scale-95"
                   >
                     <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-gradient-to-r from-primary-500 to-accent-500 flex items-center justify-center text-white font-semibold text-xs md:text-sm">
@@ -212,6 +234,7 @@ export default function Header() {
                     </span>
                   </button>
 
+                  {/* ===== User dropdown menu ===== */}
                   {isUserMenuOpen && (
                     <div className="absolute right-0 mt-2 w-48 bg-[rgb(var(--card))] rounded-xl shadow-xl border border-[rgb(var(--border))] py-2 z-[9999] animate-fade-in">
                       <div className="px-4 py-2 border-b border-[rgb(var(--border))]">
@@ -223,34 +246,19 @@ export default function Header() {
                         </p>
                       </div>
 
-                      <Link
-                        href="/dashboard"
-                        className="flex items-center gap-3 px-4 py-2 hover:bg-[rgb(var(--muted))] transition-all duration-200 hover:scale-95 text-sm"
-                        onClick={() => setIsUserMenuOpen(false)}
-                      >
-                        <LayoutDashboard className="w-4 h-4" /> Dashboard
-                      </Link>
-                      <Link
-                        href="/dashboard/add-vehicle"
-                        className="flex items-center gap-3 px-4 py-2 hover:bg-[rgb(var(--muted))] transition-all duration-200 hover:scale-95 text-sm"
-                        onClick={() => setIsUserMenuOpen(false)}
-                      >
-                        <PlusCircle className="w-4 h-4" /> Add Vehicle
-                      </Link>
-                      <Link
-                        href="/dashboard/favorites"
-                        className="flex items-center gap-3 px-4 py-2 hover:bg-[rgb(var(--muted))] transition-all duration-200 hover:scale-95 text-sm"
-                        onClick={() => setIsUserMenuOpen(false)}
-                      >
-                        <Heart className="w-4 h-4" /> Favorites
-                      </Link>
-                      <Link
-                        href="/dashboard/profile"
-                        className="flex items-center gap-3 px-4 py-2 hover:bg-[rgb(var(--muted))] transition-all duration-200 hover:scale-95 text-sm"
-                        onClick={() => setIsUserMenuOpen(false)}
-                      >
-                        <Settings className="w-4 h-4" /> Settings
-                      </Link>
+                      {protectedNavItems.map((item) => {
+                        const Icon = item.icon;
+                        return (
+                          <Link
+                            key={item.href}
+                            href={item.href}
+                            className="flex items-center gap-3 px-4 py-2 hover:bg-[rgb(var(--muted))] transition-all duration-200 hover:scale-95 text-sm"
+                            onClick={() => setIsUserMenuOpen(false)}
+                          >
+                            <Icon className="w-4 h-4" /> {item.label}
+                          </Link>
+                        );
+                      })}
 
                       <button
                         onClick={handleLogout}
@@ -280,9 +288,9 @@ export default function Header() {
                 </div>
               )}
 
-              {/* ===== Hamburger Menu ===== */}
+              {/* ===== Mobile menu toggle ===== */}
               <button
-                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                onClick={toggleMenu}
                 className="lg:hidden p-1.5 md:p-2 rounded-lg hover:bg-[rgb(var(--muted))] transition-all duration-200 hover:scale-95 relative z-[9999]"
                 aria-label="Toggle menu"
               >
@@ -297,20 +305,23 @@ export default function Header() {
         </div>
       </header>
 
-      {/* ===== Mobile Menu ===== */}
+      {/* ===== Mobile Menu Overlay ===== */}
       {isMenuOpen && (
         <>
+          {/* ===== Backdrop ===== */}
           <div
             className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9998] lg:hidden animate-fade-in"
-            onClick={() => setIsMenuOpen(false)}
+            onClick={toggleMenu}
           />
+
+          {/* ===== Mobile Menu Panel ===== */}
           <div className="fixed top-0 right-0 h-full w-64 sm:w-72 bg-[rgb(var(--card))] shadow-2xl z-[9999] lg:hidden animate-slide-in-right">
             <div className="flex justify-between items-center p-4 border-b border-[rgb(var(--border))] h-14 md:h-16">
               <span className="text-base sm:text-lg font-bold text-gradient">
                 Menu
               </span>
               <button
-                onClick={() => setIsMenuOpen(false)}
+                onClick={toggleMenu}
                 className="p-2 rounded-lg hover:bg-[rgb(var(--muted))] transition-all duration-200 hover:scale-95"
               >
                 <X className="w-5 h-5 sm:w-6 sm:h-6 text-[rgb(var(--foreground))]" />
@@ -318,7 +329,7 @@ export default function Header() {
             </div>
 
             <nav className="p-4 space-y-1 text-[rgb(var(--foreground))]">
-              {/* Vehicles */}
+              {/* ===== Main nav items ===== */}
               {navItems.map((item) => {
                 const Icon = item.icon;
                 return (
@@ -326,7 +337,7 @@ export default function Header() {
                     key={item.href}
                     href={item.href}
                     className="flex items-center gap-4 px-4 py-3 rounded-lg hover:bg-[rgb(var(--muted))] transition-all duration-200 hover:scale-95 font-medium"
-                    onClick={() => setIsMenuOpen(false)}
+                    onClick={toggleMenu}
                   >
                     <Icon className="w-5 h-5 text-primary-500 flex-shrink-0" />
                     <span>{item.label}</span>
@@ -334,7 +345,7 @@ export default function Header() {
                 );
               })}
 
-              {/* ===== Dashboard - with token check ===== */}
+              {/* ===== Dashboard link ===== */}
               <Link
                 href="/dashboard"
                 onClick={handleDashboardClick}
@@ -344,7 +355,7 @@ export default function Header() {
                 <span>Dashboard</span>
               </Link>
 
-              {/* ===== Protected nav items (only for logged in users) ===== */}
+              {/* ===== Protected nav items ===== */}
               {isLoggedIn &&
                 protectedNavItems.slice(1).map((item) => {
                   const Icon = item.icon;
@@ -353,7 +364,7 @@ export default function Header() {
                       key={item.href}
                       href={item.href}
                       className="flex items-center gap-4 px-4 py-3 rounded-lg hover:bg-[rgb(var(--muted))] transition-all duration-200 hover:scale-95 font-medium"
-                      onClick={() => setIsMenuOpen(false)}
+                      onClick={toggleMenu}
                     >
                       <Icon className="w-5 h-5 text-primary-500 flex-shrink-0" />
                       <span>{item.label}</span>
@@ -361,12 +372,13 @@ export default function Header() {
                   );
                 })}
 
+              {/* ===== Auth actions ===== */}
               <div className="border-t border-[rgb(var(--border))] my-4 pt-4">
                 {isLoggedIn ? (
                   <button
                     onClick={() => {
                       handleLogout();
-                      setIsMenuOpen(false);
+                      toggleMenu();
                     }}
                     className="flex items-center gap-4 px-4 py-3 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/50 transition-all duration-200 hover:scale-95 text-red-500 w-full"
                   >
@@ -377,7 +389,8 @@ export default function Header() {
                   <div className="space-y-2">
                     <Link
                       href="/auth/login"
-                      onClick={() => setIsMenuOpen(false)}
+                      onClick={toggleMenu}
+                      className="block"
                     >
                       <button className="btn-primary w-full text-sm py-2.5">
                         Sign In
@@ -385,7 +398,8 @@ export default function Header() {
                     </Link>
                     <Link
                       href="/auth/register"
-                      onClick={() => setIsMenuOpen(false)}
+                      onClick={toggleMenu}
+                      className="block"
                     >
                       <button className="btn-outline w-full text-sm py-2.5">
                         Sign Up
@@ -400,4 +414,7 @@ export default function Header() {
       )}
     </>
   );
-}
+});
+
+Header.displayName = "Header";
+export default Header;
