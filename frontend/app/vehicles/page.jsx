@@ -1,10 +1,11 @@
 // app/vehicles/page.jsx
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, memo } from "react";
 import { Search, Filter, X, ChevronDown } from "lucide-react";
 import VehicleCard from "../../components/vehicles/VehicleCard";
-import { vehiclesService } from "../../services/vehicles.service";
+import { useVehiclesQuery } from "../../hooks/useVehicles";
+import { useDebounce } from "../../hooks/useDebounce";
 
 // ===== Import helpers =====
 import {
@@ -15,7 +16,7 @@ import {
 } from "../../helpers/constants";
 
 // ===== Loading component =====
-const Loading = () => (
+const Loading = memo(() => (
   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
     {[...Array(8)].map((_, i) => (
       <div key={i} className="card p-4 animate-pulse">
@@ -25,7 +26,9 @@ const Loading = () => (
       </div>
     ))}
   </div>
-);
+));
+
+Loading.displayName = "Loading";
 
 // ===== Initial filter state =====
 const INITIAL_FILTERS = {
@@ -39,12 +42,28 @@ const INITIAL_FILTERS = {
   ordering: "",
 };
 
-export default function VehiclesPage() {
-  const [cars, setCars] = useState([]);
-  const [loading, setLoading] = useState(true);
+const VehiclesPage = memo(() => {
   const [search, setSearch] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState(INITIAL_FILTERS);
+
+  // ===== Debounce search =====
+  const debouncedSearch = useDebounce(search, 500);
+
+  // ===== Combine filters with search =====
+  const queryFilters = useMemo(() => {
+    const clean = Object.fromEntries(
+      Object.entries(filters).filter(([_, v]) => v !== ""),
+    );
+    if (debouncedSearch) {
+      clean.search = debouncedSearch;
+    }
+    return clean;
+  }, [filters, debouncedSearch]);
+
+  // ===== React Query for fetching cars =====
+  const { data, isLoading, error, refetch } = useVehiclesQuery(queryFilters);
+  const cars = data?.results || data || [];
 
   // ===== Memoized computed values =====
   const hasFilters = useMemo(() => {
@@ -59,55 +78,24 @@ export default function VehiclesPage() {
   const years = useMemo(() => YEARS, []);
   const orderOptions = useMemo(() => ORDER_OPTIONS, []);
 
-  // ===== Fetch cars =====
-  const fetchCars = useCallback(
-    async (extra = {}) => {
-      setLoading(true);
-      try {
-        const allFilters = { ...filters, ...extra };
-        const clean = Object.fromEntries(
-          Object.entries(allFilters).filter(([_, v]) => v !== ""),
-        );
-        const data = await vehiclesService.getAllCars(clean);
-        setCars(data.results || []);
-      } catch (err) {
-        console.error("Error fetching cars:", err);
-      } finally {
-        setLoading(false);
-      }
-    },
-    [filters],
-  );
-
-  // ===== Initial fetch =====
-  useEffect(() => {
-    fetchCars();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
   // ===== Handlers =====
   const handleSearch = useCallback(
     (e) => {
       e.preventDefault();
-      fetchCars({ ...filters, search });
+      refetch();
     },
-    [filters, search, fetchCars],
+    [refetch],
   );
 
-  const changeFilter = useCallback(
-    (key, value) => {
-      const newFilters = { ...filters, [key]: value };
-      setFilters(newFilters);
-      fetchCars(newFilters);
-    },
-    [filters, fetchCars],
-  );
+  const changeFilter = useCallback((key, value) => {
+    setFilters((prev) => ({ ...prev, [key]: value }));
+  }, []);
 
   const clearAll = useCallback(() => {
     setFilters(INITIAL_FILTERS);
     setSearch("");
     setShowFilters(false);
-    fetchCars(INITIAL_FILTERS);
-  }, [fetchCars]);
+  }, []);
 
   const toggleFilters = useCallback(() => {
     setShowFilters((prev) => !prev);
@@ -168,7 +156,7 @@ export default function VehiclesPage() {
             />
           </div>
 
-          {/* Fuel Type (from helpers) */}
+          {/* Fuel Type */}
           <div>
             <label className="label text-xs">Fuel Type</label>
             <select
@@ -185,7 +173,7 @@ export default function VehiclesPage() {
             </select>
           </div>
 
-          {/* Gearbox (from helpers) */}
+          {/* Gearbox */}
           <div>
             <label className="label text-xs">Gearbox</label>
             <select
@@ -202,7 +190,7 @@ export default function VehiclesPage() {
             </select>
           </div>
 
-          {/* Year (from helpers) */}
+          {/* Year */}
           <div>
             <label className="label text-xs">Year</label>
             <select
@@ -252,6 +240,20 @@ export default function VehiclesPage() {
     gearboxTypes,
     years,
   ]);
+
+  // ===== Error state =====
+  if (error) {
+    return (
+      <div className="bg-[rgb(var(--background))] py-8">
+        <div className="container-custom text-center py-20">
+          <p className="text-red-500">❌ Failed to load vehicles</p>
+          <button onClick={() => refetch()} className="btn-primary mt-4">
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // ===== Render =====
   return (
@@ -325,7 +327,7 @@ export default function VehiclesPage() {
         {filterPanel}
 
         {/* ===== Vehicles Grid ===== */}
-        {loading ? (
+        {isLoading ? (
           <Loading />
         ) : cars.length === 0 ? (
           <div className="text-center py-20">
@@ -350,4 +352,7 @@ export default function VehiclesPage() {
       </div>
     </div>
   );
-}
+});
+
+VehiclesPage.displayName = "VehiclesPage";
+export default VehiclesPage;
