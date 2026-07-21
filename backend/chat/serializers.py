@@ -1,4 +1,5 @@
 from rest_framework import serializers
+
 from .models import Conversation, Message
 
 
@@ -21,11 +22,11 @@ class MessageSerializer(serializers.ModelSerializer):
             "created_at",
         ]
         read_only_fields = [
-    "conversation",
-    "sender",
-    "sender_username",
-    "created_at",
-]
+            "conversation",
+            "sender",
+            "sender_username",
+            "created_at",
+        ]
 
 
 class ConversationSerializer(serializers.ModelSerializer):
