@@ -39,8 +39,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         print("MESSAGE:", message)
 
+        # فعلاً کاربر تستی
+        sender = await self.get_test_user()
+
         # ذخیره در دیتابیس
-        await self.save_message(message)
+        await self.save_message(message, sender)
 
         # ارسال برای همه اعضای روم
         await self.channel_layer.group_send(
@@ -62,14 +65,20 @@ class ChatConsumer(AsyncWebsocketConsumer):
         )
 
     @database_sync_to_async
-    def save_message(self, text):
+    def get_test_user(self):
+        from django.contrib.auth import get_user_model
+
+        User = get_user_model()
+        return User.objects.get(id=4)
+
+    @database_sync_to_async
+    def save_message(self, text, sender):
         from .models import Conversation, Message
 
         conversation = Conversation.objects.get(id=self.room_name)
 
-        # فعلاً فرستنده را تستی گذاشتیم
-        Message.objects.create(
+        return Message.objects.create(
             conversation=conversation,
-            sender=conversation.buyer,
+            sender=sender,
             text=text
         )
