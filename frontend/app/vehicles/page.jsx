@@ -1,10 +1,10 @@
 // app/vehicles/page.jsx
 "use client";
 
-import { useState, useMemo, useCallback, memo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Search, Filter, X, ChevronDown } from "lucide-react";
 import VehicleCard from "../../components/vehicles/VehicleCard";
-import { useVehiclesQuery } from "../../hooks/useVehicles";
+import { vehiclesService } from "../../services/vehicles.service";
 import { useDebounce } from "../../hooks/useDebounce";
 
 // ===== Import helpers =====
@@ -16,7 +16,7 @@ import {
 } from "../../helpers/constants";
 
 // ===== Loading component =====
-const Loading = memo(() => (
+const Loading = () => (
   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
     {[...Array(8)].map((_, i) => (
       <div key={i} className="card p-4 animate-pulse">
@@ -26,9 +26,7 @@ const Loading = memo(() => (
       </div>
     ))}
   </div>
-));
-
-Loading.displayName = "Loading";
+);
 
 // ===== Initial filter state =====
 const INITIAL_FILTERS = {
@@ -42,28 +40,15 @@ const INITIAL_FILTERS = {
   ordering: "",
 };
 
-const VehiclesPage = memo(() => {
+export default function VehiclesPage() {
+  const [cars, setCars] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState(INITIAL_FILTERS);
 
   // ===== Debounce search =====
   const debouncedSearch = useDebounce(search, 500);
-
-  // ===== Combine filters with search =====
-  const queryFilters = useMemo(() => {
-    const clean = Object.fromEntries(
-      Object.entries(filters).filter(([_, v]) => v !== ""),
-    );
-    if (debouncedSearch) {
-      clean.search = debouncedSearch;
-    }
-    return clean;
-  }, [filters, debouncedSearch]);
-
-  // ===== React Query for fetching cars =====
-  const { data, isLoading, error, refetch } = useVehiclesQuery(queryFilters);
-  const cars = data?.results || data || [];
 
   // ===== Memoized computed values =====
   const hasFilters = useMemo(() => {
@@ -72,19 +57,49 @@ const VehiclesPage = memo(() => {
 
   const carsCount = useMemo(() => cars.length, [cars]);
 
-  // ===== Memoized filter options from helpers =====
+  // ===== Memoized filter options =====
   const fuelTypes = useMemo(() => FUEL_TYPES, []);
   const gearboxTypes = useMemo(() => GEARBOX_TYPES, []);
   const years = useMemo(() => YEARS, []);
   const orderOptions = useMemo(() => ORDER_OPTIONS, []);
 
+  // ===== Build query filters =====
+  const buildFilters = useCallback(() => {
+    const allFilters = { ...filters };
+    if (debouncedSearch) {
+      allFilters.search = debouncedSearch;
+    }
+    return Object.fromEntries(
+      Object.entries(allFilters).filter(([_, v]) => v !== ""),
+    );
+  }, [filters, debouncedSearch]);
+
+  // ===== Fetch cars =====
+  const fetchCars = useCallback(async () => {
+    setLoading(true);
+    try {
+      const cleanFilters = buildFilters();
+      const data = await vehiclesService.getAllCars(cleanFilters);
+      setCars(data.results || []);
+    } catch (err) {
+      console.error("Error fetching cars:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [buildFilters]);
+
+  // ===== Fetch on filters change =====
+  useEffect(() => {
+    fetchCars();
+  }, [fetchCars]);
+
   // ===== Handlers =====
   const handleSearch = useCallback(
     (e) => {
       e.preventDefault();
-      refetch();
+      fetchCars();
     },
-    [refetch],
+    [fetchCars],
   );
 
   const changeFilter = useCallback((key, value) => {
@@ -241,20 +256,6 @@ const VehiclesPage = memo(() => {
     years,
   ]);
 
-  // ===== Error state =====
-  if (error) {
-    return (
-      <div className="bg-[rgb(var(--background))] py-8">
-        <div className="container-custom text-center py-20">
-          <p className="text-red-500">❌ Failed to load vehicles</p>
-          <button onClick={() => refetch()} className="btn-primary mt-4">
-            Try Again
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   // ===== Render =====
   return (
     <div className="bg-[rgb(var(--background))] py-8">
@@ -327,7 +328,7 @@ const VehiclesPage = memo(() => {
         {filterPanel}
 
         {/* ===== Vehicles Grid ===== */}
-        {isLoading ? (
+        {loading ? (
           <Loading />
         ) : cars.length === 0 ? (
           <div className="text-center py-20">
@@ -352,7 +353,4 @@ const VehiclesPage = memo(() => {
       </div>
     </div>
   );
-});
-
-VehiclesPage.displayName = "VehiclesPage";
-export default VehiclesPage;
+}
