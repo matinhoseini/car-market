@@ -95,13 +95,16 @@ class FavoriteSerializer(serializers.ModelSerializer):
             "car",
             "created_at",
         ]
-        def get_fields(self):
-            fields = super().get_fields()
-            fields["car"] = CarSerializer(
-                read_only=True,
-                context=self.context
-    )
-            return fields
+
+    def get_fields(self):
+        fields = super().get_fields()
+        fields["car"] = CarSerializer(
+            read_only=True,
+            context=self.context
+        )
+        return fields
+
+
 class PublicUserSerializer(serializers.Serializer):
 
     id = serializers.IntegerField()

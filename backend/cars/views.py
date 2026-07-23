@@ -59,7 +59,6 @@ def car_list(request):
             Q(city__icontains=search)
         )
 
-
     car_filter = CarFilter(
         request.GET,
         queryset=cars
@@ -67,12 +66,10 @@ def car_list(request):
 
     cars = car_filter.qs
 
-
     ordering = request.GET.get("ordering")
 
     if ordering:
         cars = cars.order_by(ordering)
-
 
     paginator = PageNumberPagination()
     paginator.page_size = 2
@@ -82,11 +79,10 @@ def car_list(request):
         request
     )
 
-
     serializer = CarSerializer(
-    cars,
-    many=True,
-    context={"request": request}
+        paginated_cars,
+        many=True,
+        context={"request": request}
     )
 
     return paginator.get_paginated_response(
@@ -104,11 +100,18 @@ class CarDetailView(RetrieveAPIView):
         context["request"] = self.request
         return context
 
+
 class CarManageView(RetrieveUpdateDestroyAPIView):
 
     queryset = Car.objects.all()
     serializer_class = CarSerializer
-    permission_classes = [IsOwner]
+    permission_classes = [IsAuthenticated, IsOwner]
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context["request"] = self.request
+        return context
+
 
 class MyCarsView(APIView):
 
@@ -124,7 +127,7 @@ class MyCarsView(APIView):
             context={"request": request}
         )
 
-        return Response(serializer.data)   
+        return Response(serializer.data)
 
 
 @extend_schema(
@@ -197,6 +200,8 @@ def delete_car_image(request, image_id):
     car_image.delete()
 
     return Response(status=204)
+
+
 class FavoriteView(APIView):
 
     permission_classes = [IsAuthenticated]
@@ -253,7 +258,10 @@ class FavoriteView(APIView):
             {"message": "Removed from favorites"},
             status=status.HTTP_204_NO_CONTENT
         )
+
+
 class FavoriteListView(APIView):
+
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -269,6 +277,8 @@ class FavoriteListView(APIView):
         )
 
         return Response(serializer.data)
+
+
 class DashboardView(APIView):
 
     permission_classes = [IsAuthenticated]
@@ -287,6 +297,8 @@ class DashboardView(APIView):
             "cars_count": cars_count,
             "favorites_count": favorites_count,
         })
+
+
 class PublicUserView(APIView):
 
     def get(self, request, user_id):
@@ -303,14 +315,14 @@ class PublicUserView(APIView):
         cars = Car.objects.filter(owner=user)
 
         data = {
-    "id": user.id,
-    "username": user.username,
-    "cars_count": cars.count(),
-    "cars": CarSerializer(
-        cars,
-        many=True,
-        context={"request": request}
-    ).data
-}
+            "id": user.id,
+            "username": user.username,
+            "cars_count": cars.count(),
+            "cars": CarSerializer(
+                cars,
+                many=True,
+                context={"request": request}
+            ).data
+        }
 
         return Response(data)
