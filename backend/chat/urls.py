@@ -3,6 +3,7 @@ from .views import (
     StartConversationView,
     ConversationListView,
     MessageListCreateView,
+    MarkMessagesReadView,
 )
 
 urlpatterns = [
@@ -19,5 +20,10 @@ urlpatterns = [
     path(
         "conversations/<int:conversation_id>/messages/",
         MessageListCreateView.as_view(),
+    ),
+
+    path(
+        "conversations/<int:conversation_id>/mark-read/",
+        MarkMessagesReadView.as_view(),
     ),
 ]

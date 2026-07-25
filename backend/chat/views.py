@@ -2,6 +2,7 @@ from django.db.models import Q
 
 from rest_framework import status
 from rest_framework.generics import ListAPIView
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -87,11 +88,19 @@ class MessageListCreateView(APIView):
 
         messages = Message.objects.filter(
             conversation=conversation
-        ).order_by("created_at")
+        ).order_by("-created_at")
 
-        serializer = MessageSerializer(messages, many=True)
+        paginator = PageNumberPagination()
+        paginator.page_size = 20
 
-        return Response(serializer.data)
+        paginated_messages = paginator.paginate_queryset(
+            messages,
+            request
+        )
+
+        serializer = MessageSerializer(paginated_messages, many=True)
+
+        return paginator.get_paginated_response(serializer.data)
 
     def post(self, request, conversation_id):
 
@@ -120,4 +129,37 @@ class MessageListCreateView(APIView):
         return Response(
             serializer.errors,
             status=status.HTTP_400_BAD_REQUEST
+        )
+
+        
+class MarkMessagesReadView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, conversation_id):
+
+        try:
+            conversation = Conversation.objects.get(id=conversation_id)
+        except Conversation.DoesNotExist:
+            return Response(
+                {"error": "Conversation not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        if request.user not in [conversation.buyer, conversation.seller]:
+            return Response(
+                {"error": "Access denied"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        updated_count = Message.objects.filter(
+            conversation=conversation,
+            is_read=False,
+        ).exclude(
+            sender=request.user
+        ).update(is_read=True)
+
+        return Response(
+            {"marked_as_read": updated_count},
+            status=status.HTTP_200_OK
         )

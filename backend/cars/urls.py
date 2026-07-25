@@ -53,5 +53,5 @@ urlpatterns = [
     "users/<int:user_id>/",
     PublicUserView.as_view(),
     ),
-    path("api/chat/", include("chat.urls")),
+    
 ]
