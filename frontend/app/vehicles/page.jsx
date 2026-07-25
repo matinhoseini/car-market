@@ -2,7 +2,14 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { Search, Filter, X, ChevronDown } from "lucide-react";
+import {
+  Search,
+  Filter,
+  X,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import VehicleCard from "../../components/vehicles/VehicleCard";
 import { vehiclesService } from "../../services/vehicles.service";
 import { useDebounce } from "../../hooks/useDebounce";
@@ -46,8 +53,11 @@ export default function VehiclesPage() {
   const [search, setSearch] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState(INITIAL_FILTERS);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
 
-  // ===== Debounce search to prevent excessive API calls =====
+  // ===== Debounce search =====
   const debouncedSearch = useDebounce(search, 500);
 
   // ===== Memoized computed values =====
@@ -55,45 +65,47 @@ export default function VehiclesPage() {
     return Object.values(filters).some((v) => v !== "");
   }, [filters]);
 
-  const carsCount = useMemo(() => cars.length, [cars]);
-
-  // ===== Memoized filter options from constants =====
+  // ===== Memoized filter options =====
   const fuelTypes = useMemo(() => FUEL_TYPES, []);
   const gearboxTypes = useMemo(() => GEARBOX_TYPES, []);
   const years = useMemo(() => YEARS, []);
   const orderOptions = useMemo(() => ORDER_OPTIONS, []);
 
-  // ===== Build query filters by removing empty values =====
+  // ===== Build query filters =====
   const buildFilters = useCallback(() => {
-    const allFilters = { ...filters };
+    const allFilters = { ...filters, page: currentPage };
     if (debouncedSearch) {
       allFilters.search = debouncedSearch;
     }
-    // Remove empty, null, or undefined values
-    const clean = Object.fromEntries(
+    return Object.fromEntries(
       Object.entries(allFilters).filter(
         ([_, v]) => v !== "" && v !== null && v !== undefined,
       ),
     );
-    return clean;
-  }, [filters, debouncedSearch]);
+  }, [filters, debouncedSearch, currentPage]);
 
-  // ===== Fetch cars from API =====
+  // ===== Fetch cars =====
   const fetchCars = useCallback(async () => {
     setLoading(true);
     try {
       const cleanFilters = buildFilters();
+      console.log("🚗 Fetching with filters:", cleanFilters);
       const data = await vehiclesService.getAllCars(cleanFilters);
-      setCars(data.results || data || []);
+      console.log("✅ Cars fetched:", data);
+      setCars(data.results || []);
+      setTotalCount(data.count || 0);
+      setTotalPages(Math.ceil((data.count || 0) / 40));
     } catch (err) {
-      console.error("Error fetching cars:", err);
+      console.error("❌ Error fetching cars:", err);
       setCars([]);
+      setTotalCount(0);
+      setTotalPages(1);
     } finally {
       setLoading(false);
     }
   }, [buildFilters]);
 
-  // ===== Fetch whenever filters or search changes =====
+  // ===== Fetch on filter/refresh change =====
   useEffect(() => {
     fetchCars();
   }, [fetchCars]);
@@ -101,12 +113,14 @@ export default function VehiclesPage() {
   // ===== Handlers =====
   const changeFilter = useCallback((key, value) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
+    setCurrentPage(1); // Reset to first page on filter change
   }, []);
 
   const clearAll = useCallback(() => {
     setFilters(INITIAL_FILTERS);
     setSearch("");
     setShowFilters(false);
+    setCurrentPage(1);
   }, []);
 
   const toggleFilters = useCallback(() => {
@@ -117,13 +131,22 @@ export default function VehiclesPage() {
     setShowFilters(false);
   }, []);
 
-  // ===== Memoized filter panel to prevent unnecessary re-renders =====
+  const handlePageChange = useCallback(
+    (page) => {
+      if (page >= 1 && page <= totalPages) {
+        setCurrentPage(page);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+    },
+    [totalPages],
+  );
+
+  // ===== Memoized filter panel =====
   const filterPanel = useMemo(() => {
     if (!showFilters) return null;
 
     return (
       <div className="card p-4 md:p-6 mb-6 relative">
-        {/* Close button */}
         <button
           onClick={closeFilters}
           className="absolute top-3 right-3 p-1.5 rounded-lg hover:bg-[rgb(var(--muted))] transition"
@@ -133,7 +156,7 @@ export default function VehiclesPage() {
         </button>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Brand filter */}
+          {/* Brand */}
           <div>
             <label className="label text-xs">Brand</label>
             <input
@@ -145,7 +168,7 @@ export default function VehiclesPage() {
             />
           </div>
 
-          {/* Min Price filter */}
+          {/* Min Price */}
           <div>
             <label className="label text-xs">Min Price</label>
             <input
@@ -157,7 +180,7 @@ export default function VehiclesPage() {
             />
           </div>
 
-          {/* Max Price filter */}
+          {/* Max Price */}
           <div>
             <label className="label text-xs">Max Price</label>
             <input
@@ -169,7 +192,7 @@ export default function VehiclesPage() {
             />
           </div>
 
-          {/* Fuel Type filter */}
+          {/* Fuel Type */}
           <div>
             <label className="label text-xs">Fuel Type</label>
             <select
@@ -186,7 +209,7 @@ export default function VehiclesPage() {
             </select>
           </div>
 
-          {/* Gearbox filter */}
+          {/* Gearbox */}
           <div>
             <label className="label text-xs">Gearbox</label>
             <select
@@ -203,7 +226,7 @@ export default function VehiclesPage() {
             </select>
           </div>
 
-          {/* Year filter */}
+          {/* Year */}
           <div>
             <label className="label text-xs">Year</label>
             <select
@@ -220,7 +243,7 @@ export default function VehiclesPage() {
             </select>
           </div>
 
-          {/* City filter */}
+          {/* City */}
           <div>
             <label className="label text-xs">City</label>
             <input
@@ -233,7 +256,6 @@ export default function VehiclesPage() {
           </div>
         </div>
 
-        {/* Action buttons */}
         <div className="flex justify-end gap-3 mt-4 pt-4 border-t border-[rgb(var(--border))]">
           <button onClick={clearAll} className="btn-outline btn-sm">
             Clear All
@@ -255,15 +277,106 @@ export default function VehiclesPage() {
     years,
   ]);
 
+  // ===== Pagination component =====
+  const Pagination = useMemo(() => {
+    if (totalPages <= 1) return null;
+
+    const pages = [];
+    const maxVisible = 5;
+    let start = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+    let end = Math.min(totalPages, start + maxVisible - 1);
+
+    if (end - start + 1 < maxVisible) {
+      start = Math.max(1, end - maxVisible + 1);
+    }
+
+    for (let i = start; i <= end; i++) {
+      pages.push(i);
+    }
+
+    return (
+      <div className="flex justify-center items-center gap-2 mt-8">
+        {/* Previous */}
+        <button
+          onClick={() => handlePageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          className={`p-2 rounded-lg border transition ${
+            currentPage === 1
+              ? "opacity-50 cursor-not-allowed"
+              : "hover:bg-[rgb(var(--muted))]"
+          }`}
+          aria-label="Previous page"
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+
+        {/* First page */}
+        {start > 1 && (
+          <>
+            <button
+              onClick={() => handlePageChange(1)}
+              className="px-3 py-1 rounded-lg hover:bg-[rgb(var(--muted))] transition"
+            >
+              1
+            </button>
+            {start > 2 && <span className="px-2">...</span>}
+          </>
+        )}
+
+        {/* Page numbers */}
+        {pages.map((page) => (
+          <button
+            key={page}
+            onClick={() => handlePageChange(page)}
+            className={`px-3 py-1 rounded-lg transition ${
+              page === currentPage
+                ? "bg-primary-500 text-white"
+                : "hover:bg-[rgb(var(--muted))]"
+            }`}
+          >
+            {page}
+          </button>
+        ))}
+
+        {/* Last page */}
+        {end < totalPages && (
+          <>
+            {end < totalPages - 1 && <span className="px-2">...</span>}
+            <button
+              onClick={() => handlePageChange(totalPages)}
+              className="px-3 py-1 rounded-lg hover:bg-[rgb(var(--muted))] transition"
+            >
+              {totalPages}
+            </button>
+          </>
+        )}
+
+        {/* Next */}
+        <button
+          onClick={() => handlePageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          className={`p-2 rounded-lg border transition ${
+            currentPage === totalPages
+              ? "opacity-50 cursor-not-allowed"
+              : "hover:bg-[rgb(var(--muted))]"
+          }`}
+          aria-label="Next page"
+        >
+          <ChevronRight className="w-4 h-4" />
+        </button>
+      </div>
+    );
+  }, [currentPage, totalPages, handlePageChange]);
+
   return (
     <div className="bg-[rgb(var(--background))] py-8">
       <div className="container-custom">
-        {/* ===== Header Section ===== */}
+        {/* ===== Header ===== */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
           <div>
             <h1 className="text-2xl font-bold font-heading">🚗 All Vehicles</h1>
             <p className="text-sm text-[rgb(var(--muted-foreground))] mt-1">
-              {carsCount} vehicles found
+              {totalCount} vehicles found
             </p>
           </div>
 
@@ -284,7 +397,6 @@ export default function VehiclesPage() {
 
         {/* ===== Filter Bar ===== */}
         <div className="flex flex-wrap items-center gap-2 mb-6">
-          {/* Toggle filters button */}
           <button
             onClick={toggleFilters}
             className="btn-outline btn-sm flex items-center gap-1"
@@ -298,7 +410,6 @@ export default function VehiclesPage() {
             />
           </button>
 
-          {/* Ordering select */}
           <select
             value={filters.ordering}
             onChange={(e) => changeFilter("ordering", e.target.value)}
@@ -311,7 +422,6 @@ export default function VehiclesPage() {
             ))}
           </select>
 
-          {/* Clear all filters button */}
           {hasFilters && (
             <button
               onClick={clearAll}
@@ -330,7 +440,6 @@ export default function VehiclesPage() {
         {loading ? (
           <Loading />
         ) : cars.length === 0 ? (
-          // Empty state
           <div className="text-center py-20">
             <div className="text-6xl mb-4">🚗</div>
             <h3 className="text-xl font-semibold mb-2">No vehicles found</h3>
@@ -344,12 +453,16 @@ export default function VehiclesPage() {
             )}
           </div>
         ) : (
-          // Vehicles grid
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {cars.map((car) => (
-              <VehicleCard key={car.id} car={car} />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {cars.map((car) => (
+                <VehicleCard key={car.id} car={car} />
+              ))}
+            </div>
+
+            {/* ===== Pagination ===== */}
+            {Pagination}
+          </>
         )}
       </div>
     </div>
