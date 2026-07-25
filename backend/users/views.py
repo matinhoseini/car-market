@@ -1,3 +1,5 @@
+from django.core.cache import cache
+
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
@@ -37,3 +39,19 @@ def profile(request):
     serializer = ProfileSerializer(request.user)
 
     return Response(serializer.data)
+
+
+@extend_schema(
+    responses={200: dict}
+)
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def online_users(request):
+
+    counts = cache.get("online_user_counts", {})
+
+    online_user_ids = list(counts.keys())
+
+    return Response({
+        "online_user_ids": online_user_ids
+    })

@@ -2,6 +2,7 @@ import json
 
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
+from django.core.cache import cache
 
 
 class ChatConsumer(AsyncWebsocketConsumer):
@@ -141,3 +142,109 @@ class ChatConsumer(AsyncWebsocketConsumer):
             sender=sender,
             text=text,
         )
+
+
+PRESENCE_CACHE_KEY = "online_user_counts"
+
+
+class PresenceConsumer(AsyncWebsocketConsumer):
+
+    GROUP_NAME = "online_users"
+
+    async def connect(self):
+
+        user = self.scope["user"]
+
+        if user.is_anonymous:
+            await self.close()
+            return
+
+        await self.channel_layer.group_add(
+            self.GROUP_NAME,
+            self.channel_name
+        )
+
+        await self.accept()
+
+        became_online = await self.mark_user_online(user.id)
+
+        if became_online:
+            await self.channel_layer.group_send(
+                self.GROUP_NAME,
+                {
+                    "type": "presence_event",
+                    "user_id": user.id,
+                    "username": user.username,
+                    "is_online": True,
+                }
+            )
+
+    async def disconnect(self, close_code):
+
+        user = self.scope["user"]
+
+        if not user.is_anonymous:
+
+            became_offline = await self.mark_user_offline(user.id)
+
+            if became_offline:
+                await self.channel_layer.group_send(
+                    self.GROUP_NAME,
+                    {
+                        "type": "presence_event",
+                        "user_id": user.id,
+                        "username": user.username,
+                        "is_online": False,
+                    }
+                )
+
+        await self.channel_layer.group_discard(
+            self.GROUP_NAME,
+            self.channel_name
+        )
+
+    async def presence_event(self, event):
+
+        await self.send(
+            text_data=json.dumps(
+                {
+                    "type": "presence",
+                    "user_id": event["user_id"],
+                    "username": event["username"],
+                    "is_online": event["is_online"],
+                },
+                ensure_ascii=False,
+            )
+        )
+
+    @database_sync_to_async
+    def mark_user_online(self, user_id):
+
+        counts = cache.get(PRESENCE_CACHE_KEY, {})
+        counts[user_id] = counts.get(user_id, 0) + 1
+
+        became_online = counts[user_id] == 1
+
+        cache.set(PRESENCE_CACHE_KEY, counts, timeout=None)
+
+        return became_online
+
+    @database_sync_to_async
+    def mark_user_offline(self, user_id):
+
+        counts = cache.get(PRESENCE_CACHE_KEY, {})
+
+        if user_id in counts:
+            counts[user_id] -= 1
+
+            if counts[user_id] <= 0:
+                del counts[user_id]
+                became_offline = True
+            else:
+                became_offline = False
+        else:
+            became_offline = True
+
+        cache.set(PRESENCE_CACHE_KEY, counts, timeout=None)
+
+        return became_offline
