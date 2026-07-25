@@ -19,27 +19,20 @@ import {
   User,
 } from "lucide-react";
 import { vehiclesService } from "../../../services/vehicles.service";
-import { useFavorites } from "../../../hooks/useFavorites";
 import { authService } from "../../../services/auth.service";
 import toast from "react-hot-toast";
 
 // ===== Import from helpers =====
-import {
-  getImageUrl,
-  getFirstImage,
-  getImageByIndex,
-} from "../../../helpers/image";
+import { getImageUrl, getImageByIndex } from "../../../helpers/image";
 import {
   formatPrice,
   formatMileage,
   formatDate,
-  formatRelativeTime,
-  truncateText,
 } from "../../../helpers/format";
 import { getStorage } from "../../../helpers/storage";
 import { STORAGE_KEYS } from "../../../helpers/constants";
 
-// ===== Specs configuration (outside component) =====
+// ===== Specs configuration =====
 const SPECS_CONFIG = [
   { key: "year", icon: Calendar, label: "Year" },
   { key: "mileage", icon: Gauge, label: "Mileage" },
@@ -52,16 +45,12 @@ export default function VehicleDetailClient({ car: initialCar }) {
   const [car, setCar] = useState(initialCar);
   const [activeImage, setActiveImage] = useState(0);
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
 
   // ===== Fetch user profile =====
   useEffect(() => {
     const fetchUser = async () => {
       const token = getStorage(STORAGE_KEYS.ACCESS_TOKEN);
-      if (!token) {
-        setLoading(false);
-        return;
-      }
+      if (!token) return;
 
       try {
         const userData = await authService.getProfile();
@@ -69,19 +58,11 @@ export default function VehicleDetailClient({ car: initialCar }) {
       } catch (error) {
         console.error("Error fetching user profile:", error);
         setUser(null);
-      } finally {
-        setLoading(false);
       }
     };
 
     fetchUser();
   }, []);
-
-  // ===== Use favorites hook =====
-  const { isLiked, isLoading, toggleFavorite } = useFavorites(
-    car?.id,
-    car?.is_favorite || false,
-  );
 
   // ===== Memoized values =====
   const ownerName = useMemo(() => {
@@ -122,11 +103,7 @@ export default function VehicleDetailClient({ car: initialCar }) {
     }));
   }, [car, formattedMileage]);
 
-  // ===== Handlers (memoized) =====
-  const handleToggleFavorite = useCallback(() => {
-    toggleFavorite();
-  }, [toggleFavorite]);
-
+  // ===== Handlers =====
   const handleBack = useCallback(() => {
     router.back();
   }, [router]);
@@ -197,30 +174,6 @@ export default function VehicleDetailClient({ car: initialCar }) {
       </div>
     );
   }, [car, ownerName, isOwner]);
-
-  // ===== Memoized favorite button =====
-  const favoriteButton = useMemo(() => {
-    if (!car) return null;
-
-    return (
-      <button
-        onClick={handleToggleFavorite}
-        disabled={isLoading}
-        className={`absolute top-4 right-4 p-3 bg-white/90 backdrop-blur-sm rounded-full shadow-md hover:scale-110 transition-transform z-10 ${
-          isLoading ? "opacity-50 cursor-not-allowed" : ""
-        }`}
-        aria-label="Toggle favorite"
-      >
-        <Heart
-          className={`w-6 h-6 transition-all ${
-            isLiked
-              ? "fill-red-500 text-red-500 animate-pulse"
-              : "text-gray-600 hover:text-red-500"
-          } ${isLoading ? "animate-spin" : ""}`}
-        />
-      </button>
-    );
-  }, [car, isLiked, isLoading, handleToggleFavorite]);
 
   // ===== Memoized seller info =====
   const sellerInfo = useMemo(() => {
@@ -337,7 +290,6 @@ export default function VehicleDetailClient({ car: initialCar }) {
               )}
 
               {ownerBadge}
-              {favoriteButton}
             </div>
 
             {imageGallery}
