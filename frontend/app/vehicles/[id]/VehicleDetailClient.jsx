@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { vehiclesService } from "../../../services/vehicles.service";
 import { useFavorites } from "../../../hooks/useFavorites";
+import { authService } from "../../../services/auth.service";
 import toast from "react-hot-toast";
 
 // ===== Import from helpers =====
@@ -51,13 +52,29 @@ export default function VehicleDetailClient({ car: initialCar }) {
   const [car, setCar] = useState(initialCar);
   const [activeImage, setActiveImage] = useState(0);
   const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // ===== Check if user is logged in =====
+  // ===== Fetch user profile =====
   useEffect(() => {
-    const token = getStorage(STORAGE_KEYS.ACCESS_TOKEN);
-    if (token) {
-      setUser({ id: 1 });
-    }
+    const fetchUser = async () => {
+      const token = getStorage(STORAGE_KEYS.ACCESS_TOKEN);
+      if (!token) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const userData = await authService.getProfile();
+        setUser(userData);
+      } catch (error) {
+        console.error("Error fetching user profile:", error);
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUser();
   }, []);
 
   // ===== Use favorites hook =====
