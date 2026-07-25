@@ -1,10 +1,10 @@
 // app/vehicles/page.jsx
 "use client";
 
-import { useState, useMemo, useCallback, memo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Search, Filter, X, ChevronDown } from "lucide-react";
 import VehicleCard from "../../components/vehicles/VehicleCard";
-import { useVehiclesQuery } from "../../hooks/useVehicles";
+import { vehiclesService } from "../../services/vehicles.service";
 import { useDebounce } from "../../hooks/useDebounce";
 
 // ===== Import helpers =====
@@ -16,7 +16,7 @@ import {
 } from "../../helpers/constants";
 
 // ===== Loading component =====
-const Loading = memo(() => (
+const Loading = () => (
   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
     {[...Array(8)].map((_, i) => (
       <div key={i} className="card p-4 animate-pulse">
@@ -26,9 +26,7 @@ const Loading = memo(() => (
       </div>
     ))}
   </div>
-));
-
-Loading.displayName = "Loading";
+);
 
 // ===== Initial filter state =====
 const INITIAL_FILTERS = {
@@ -42,28 +40,15 @@ const INITIAL_FILTERS = {
   ordering: "",
 };
 
-const VehiclesPage = memo(() => {
+export default function VehiclesPage() {
+  const [cars, setCars] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState(INITIAL_FILTERS);
 
-  // ===== Debounce search =====
+  // ===== Debounce search to prevent excessive API calls =====
   const debouncedSearch = useDebounce(search, 500);
-
-  // ===== Combine filters with search =====
-  const queryFilters = useMemo(() => {
-    const clean = Object.fromEntries(
-      Object.entries(filters).filter(([_, v]) => v !== ""),
-    );
-    if (debouncedSearch) {
-      clean.search = debouncedSearch;
-    }
-    return clean;
-  }, [filters, debouncedSearch]);
-
-  // ===== React Query for fetching cars =====
-  const { data, isLoading, error, refetch } = useVehiclesQuery(queryFilters);
-  const cars = data?.results || data || [];
 
   // ===== Memoized computed values =====
   const hasFilters = useMemo(() => {
@@ -72,21 +57,48 @@ const VehiclesPage = memo(() => {
 
   const carsCount = useMemo(() => cars.length, [cars]);
 
-  // ===== Memoized filter options from helpers =====
+  // ===== Memoized filter options from constants =====
   const fuelTypes = useMemo(() => FUEL_TYPES, []);
   const gearboxTypes = useMemo(() => GEARBOX_TYPES, []);
   const years = useMemo(() => YEARS, []);
   const orderOptions = useMemo(() => ORDER_OPTIONS, []);
 
-  // ===== Handlers =====
-  const handleSearch = useCallback(
-    (e) => {
-      e.preventDefault();
-      refetch();
-    },
-    [refetch],
-  );
+  // ===== Build query filters by removing empty values =====
+  const buildFilters = useCallback(() => {
+    const allFilters = { ...filters };
+    if (debouncedSearch) {
+      allFilters.search = debouncedSearch;
+    }
+    // Remove empty, null, or undefined values
+    const clean = Object.fromEntries(
+      Object.entries(allFilters).filter(
+        ([_, v]) => v !== "" && v !== null && v !== undefined,
+      ),
+    );
+    return clean;
+  }, [filters, debouncedSearch]);
 
+  // ===== Fetch cars from API =====
+  const fetchCars = useCallback(async () => {
+    setLoading(true);
+    try {
+      const cleanFilters = buildFilters();
+      const data = await vehiclesService.getAllCars(cleanFilters);
+      setCars(data.results || data || []);
+    } catch (err) {
+      console.error("Error fetching cars:", err);
+      setCars([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [buildFilters]);
+
+  // ===== Fetch whenever filters or search changes =====
+  useEffect(() => {
+    fetchCars();
+  }, [fetchCars]);
+
+  // ===== Handlers =====
   const changeFilter = useCallback((key, value) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
   }, []);
@@ -105,12 +117,13 @@ const VehiclesPage = memo(() => {
     setShowFilters(false);
   }, []);
 
-  // ===== Memoized filter panel =====
+  // ===== Memoized filter panel to prevent unnecessary re-renders =====
   const filterPanel = useMemo(() => {
     if (!showFilters) return null;
 
     return (
       <div className="card p-4 md:p-6 mb-6 relative">
+        {/* Close button */}
         <button
           onClick={closeFilters}
           className="absolute top-3 right-3 p-1.5 rounded-lg hover:bg-[rgb(var(--muted))] transition"
@@ -120,7 +133,7 @@ const VehiclesPage = memo(() => {
         </button>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Brand */}
+          {/* Brand filter */}
           <div>
             <label className="label text-xs">Brand</label>
             <input
@@ -132,7 +145,7 @@ const VehiclesPage = memo(() => {
             />
           </div>
 
-          {/* Min Price */}
+          {/* Min Price filter */}
           <div>
             <label className="label text-xs">Min Price</label>
             <input
@@ -144,7 +157,7 @@ const VehiclesPage = memo(() => {
             />
           </div>
 
-          {/* Max Price */}
+          {/* Max Price filter */}
           <div>
             <label className="label text-xs">Max Price</label>
             <input
@@ -156,7 +169,7 @@ const VehiclesPage = memo(() => {
             />
           </div>
 
-          {/* Fuel Type */}
+          {/* Fuel Type filter */}
           <div>
             <label className="label text-xs">Fuel Type</label>
             <select
@@ -173,7 +186,7 @@ const VehiclesPage = memo(() => {
             </select>
           </div>
 
-          {/* Gearbox */}
+          {/* Gearbox filter */}
           <div>
             <label className="label text-xs">Gearbox</label>
             <select
@@ -190,7 +203,7 @@ const VehiclesPage = memo(() => {
             </select>
           </div>
 
-          {/* Year */}
+          {/* Year filter */}
           <div>
             <label className="label text-xs">Year</label>
             <select
@@ -207,7 +220,7 @@ const VehiclesPage = memo(() => {
             </select>
           </div>
 
-          {/* City */}
+          {/* City filter */}
           <div>
             <label className="label text-xs">City</label>
             <input
@@ -220,6 +233,7 @@ const VehiclesPage = memo(() => {
           </div>
         </div>
 
+        {/* Action buttons */}
         <div className="flex justify-end gap-3 mt-4 pt-4 border-t border-[rgb(var(--border))]">
           <button onClick={clearAll} className="btn-outline btn-sm">
             Clear All
@@ -241,25 +255,10 @@ const VehiclesPage = memo(() => {
     years,
   ]);
 
-  // ===== Error state =====
-  if (error) {
-    return (
-      <div className="bg-[rgb(var(--background))] py-8">
-        <div className="container-custom text-center py-20">
-          <p className="text-red-500">❌ Failed to load vehicles</p>
-          <button onClick={() => refetch()} className="btn-primary mt-4">
-            Try Again
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // ===== Render =====
   return (
     <div className="bg-[rgb(var(--background))] py-8">
       <div className="container-custom">
-        {/* ===== Header & Search ===== */}
+        {/* ===== Header Section ===== */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
           <div>
             <h1 className="text-2xl font-bold font-heading">🚗 All Vehicles</h1>
@@ -268,7 +267,8 @@ const VehiclesPage = memo(() => {
             </p>
           </div>
 
-          <form onSubmit={handleSearch} className="flex w-full sm:w-auto gap-2">
+          {/* ===== Search Bar ===== */}
+          <div className="flex w-full sm:w-auto gap-2">
             <div className="relative flex-1 sm:w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[rgb(var(--muted-foreground))]" />
               <input
@@ -279,14 +279,12 @@ const VehiclesPage = memo(() => {
                 className="input pl-9 py-2 text-sm"
               />
             </div>
-            <button type="submit" className="btn-primary btn-sm">
-              Search
-            </button>
-          </form>
+          </div>
         </div>
 
         {/* ===== Filter Bar ===== */}
         <div className="flex flex-wrap items-center gap-2 mb-6">
+          {/* Toggle filters button */}
           <button
             onClick={toggleFilters}
             className="btn-outline btn-sm flex items-center gap-1"
@@ -300,6 +298,7 @@ const VehiclesPage = memo(() => {
             />
           </button>
 
+          {/* Ordering select */}
           <select
             value={filters.ordering}
             onChange={(e) => changeFilter("ordering", e.target.value)}
@@ -312,6 +311,7 @@ const VehiclesPage = memo(() => {
             ))}
           </select>
 
+          {/* Clear all filters button */}
           {hasFilters && (
             <button
               onClick={clearAll}
@@ -327,9 +327,10 @@ const VehiclesPage = memo(() => {
         {filterPanel}
 
         {/* ===== Vehicles Grid ===== */}
-        {isLoading ? (
+        {loading ? (
           <Loading />
         ) : cars.length === 0 ? (
+          // Empty state
           <div className="text-center py-20">
             <div className="text-6xl mb-4">🚗</div>
             <h3 className="text-xl font-semibold mb-2">No vehicles found</h3>
@@ -343,6 +344,7 @@ const VehiclesPage = memo(() => {
             )}
           </div>
         ) : (
+          // Vehicles grid
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {cars.map((car) => (
               <VehicleCard key={car.id} car={car} />
@@ -352,7 +354,4 @@ const VehiclesPage = memo(() => {
       </div>
     </div>
   );
-});
-
-VehiclesPage.displayName = "VehiclesPage";
-export default VehiclesPage;
+}

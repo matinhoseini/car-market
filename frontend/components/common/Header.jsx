@@ -159,6 +159,17 @@ const Header = memo(() => {
     setIsUserMenuOpen((prev) => !prev);
   }, []);
 
+  // ===== Check if link is active =====
+  const isActive = useCallback(
+    (href) => {
+      if (href === "/") {
+        return pathname === href;
+      }
+      return pathname.startsWith(href);
+    },
+    [pathname],
+  );
+
   return (
     <>
       <header
@@ -185,35 +196,65 @@ const Header = memo(() => {
 
             {/* ===== Desktop Navigation ===== */}
             <nav className="hidden lg:flex items-center gap-1">
-              {navItems.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="px-3 py-1.5 rounded-lg text-sm text-[rgb(var(--foreground))] hover:text-primary-500 hover:bg-[rgb(var(--muted))] transition-all duration-200 font-medium hover:scale-95"
-                >
-                  {item.label}
-                </Link>
-              ))}
+              {navItems.map((item) => {
+                const active = isActive(item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`
+                      px-3 py-1.5 rounded-lg text-sm font-medium
+                      transition-all duration-200 hover:scale-95
+                      ${
+                        active
+                          ? "bg-primary-500/10 text-primary-500 shadow-sm ring-1 ring-primary-500/20"
+                          : "text-[rgb(var(--foreground))] hover:text-primary-500 hover:bg-[rgb(var(--muted))]"
+                      }
+                    `}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
 
               <Link
                 href="/dashboard"
                 onClick={handleDashboardClick}
-                className="px-3 py-1.5 rounded-lg text-sm text-[rgb(var(--foreground))] hover:text-primary-500 hover:bg-[rgb(var(--muted))] transition-all duration-200 font-medium hover:scale-95"
+                className={`
+                  px-3 py-1.5 rounded-lg text-sm font-medium
+                  transition-all duration-200 hover:scale-95
+                  ${
+                    isActive("/dashboard")
+                      ? "bg-primary-500/10 text-primary-500 shadow-sm ring-1 ring-primary-500/20"
+                      : "text-[rgb(var(--foreground))] hover:text-primary-500 hover:bg-[rgb(var(--muted))]"
+                  }
+                `}
               >
                 Dashboard
               </Link>
 
               {/* ===== Protected nav items (only for logged in users) ===== */}
               {isLoggedIn &&
-                protectedNavItems.slice(1).map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className="px-3 py-1.5 rounded-lg text-sm text-[rgb(var(--foreground))] hover:text-primary-500 hover:bg-[rgb(var(--muted))] transition-all duration-200 font-medium hover:scale-95"
-                  >
-                    {item.label}
-                  </Link>
-                ))}
+                protectedNavItems.slice(1).map((item) => {
+                  const active = isActive(item.href);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={`
+                        px-3 py-1.5 rounded-lg text-sm font-medium
+                        transition-all duration-200 hover:scale-95
+                        ${
+                          active
+                            ? "bg-primary-500/10 text-primary-500 shadow-sm ring-1 ring-primary-500/20"
+                            : "text-[rgb(var(--foreground))] hover:text-primary-500 hover:bg-[rgb(var(--muted))]"
+                        }
+                      `}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
             </nav>
 
             {/* ===== Right side actions ===== */}
@@ -248,11 +289,19 @@ const Header = memo(() => {
 
                       {protectedNavItems.map((item) => {
                         const Icon = item.icon;
+                        const active = isActive(item.href);
                         return (
                           <Link
                             key={item.href}
                             href={item.href}
-                            className="flex items-center gap-3 px-4 py-2 hover:bg-[rgb(var(--muted))] transition-all duration-200 hover:scale-95 text-sm"
+                            className={`
+                              flex items-center gap-3 px-4 py-2 transition-all duration-200 hover:scale-95 text-sm
+                              ${
+                                active
+                                  ? "bg-primary-500/10 text-primary-500"
+                                  : "hover:bg-[rgb(var(--muted))]"
+                              }
+                            `}
                             onClick={() => setIsUserMenuOpen(false)}
                           >
                             <Icon className="w-4 h-4" /> {item.label}
@@ -332,14 +381,24 @@ const Header = memo(() => {
               {/* ===== Main nav items ===== */}
               {navItems.map((item) => {
                 const Icon = item.icon;
+                const active = isActive(item.href);
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
-                    className="flex items-center gap-4 px-4 py-3 rounded-lg hover:bg-[rgb(var(--muted))] transition-all duration-200 hover:scale-95 font-medium"
+                    className={`
+                      flex items-center gap-4 px-4 py-3 rounded-lg transition-all duration-200 hover:scale-95 font-medium
+                      ${
+                        active
+                          ? "bg-primary-500/10 text-primary-500 shadow-sm ring-1 ring-primary-500/20"
+                          : "hover:bg-[rgb(var(--muted))]"
+                      }
+                    `}
                     onClick={toggleMenu}
                   >
-                    <Icon className="w-5 h-5 text-primary-500 flex-shrink-0" />
+                    <Icon
+                      className={`w-5 h-5 flex-shrink-0 ${active ? "text-primary-500" : "text-primary-500"}`}
+                    />
                     <span>{item.label}</span>
                   </Link>
                 );
@@ -349,7 +408,14 @@ const Header = memo(() => {
               <Link
                 href="/dashboard"
                 onClick={handleDashboardClick}
-                className="flex items-center gap-4 px-4 py-3 rounded-lg hover:bg-[rgb(var(--muted))] transition-all duration-200 hover:scale-95 font-medium"
+                className={`
+                  flex items-center gap-4 px-4 py-3 rounded-lg transition-all duration-200 hover:scale-95 font-medium
+                  ${
+                    isActive("/dashboard")
+                      ? "bg-primary-500/10 text-primary-500 shadow-sm ring-1 ring-primary-500/20"
+                      : "hover:bg-[rgb(var(--muted))]"
+                  }
+                `}
               >
                 <LayoutDashboard className="w-5 h-5 text-primary-500 flex-shrink-0" />
                 <span>Dashboard</span>
@@ -359,11 +425,19 @@ const Header = memo(() => {
               {isLoggedIn &&
                 protectedNavItems.slice(1).map((item) => {
                   const Icon = item.icon;
+                  const active = isActive(item.href);
                   return (
                     <Link
                       key={item.href}
                       href={item.href}
-                      className="flex items-center gap-4 px-4 py-3 rounded-lg hover:bg-[rgb(var(--muted))] transition-all duration-200 hover:scale-95 font-medium"
+                      className={`
+                        flex items-center gap-4 px-4 py-3 rounded-lg transition-all duration-200 hover:scale-95 font-medium
+                        ${
+                          active
+                            ? "bg-primary-500/10 text-primary-500 shadow-sm ring-1 ring-primary-500/20"
+                            : "hover:bg-[rgb(var(--muted))]"
+                        }
+                      `}
                       onClick={toggleMenu}
                     >
                       <Icon className="w-5 h-5 text-primary-500 flex-shrink-0" />
