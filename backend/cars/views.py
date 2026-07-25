@@ -25,6 +25,9 @@ from drf_spectacular.utils import extend_schema
 from .permissions import IsOwner
 
 
+# ============================================
+# 📦 CREATE CAR
+# ============================================
 @extend_schema(
     request=CarSerializer,
     responses=CarSerializer,
@@ -42,16 +45,20 @@ def create_car(request):
     return Response(serializer.errors, status=400)
 
 
+# ============================================
+# 📋 CAR LIST (PUBLIC) - WITH PAGINATION
+# ============================================
 @extend_schema(
     responses=CarSerializer(many=True),
 )
 @api_view(['GET'])
 def car_list(request):
 
+    # Get all cars
     cars = Car.objects.all()
 
+    # Search filter
     search = request.GET.get("search")
-
     if search:
         cars = cars.filter(
             Q(brand__icontains=search) |
@@ -59,25 +66,20 @@ def car_list(request):
             Q(city__icontains=search)
         )
 
-    car_filter = CarFilter(
-        request.GET,
-        queryset=cars
-    )
-
+    # Advanced filters
+    car_filter = CarFilter(request.GET, queryset=cars)
     cars = car_filter.qs
 
+    # Ordering
     ordering = request.GET.get("ordering")
-
     if ordering:
         cars = cars.order_by(ordering)
 
+    # ===== Pagination =====
     paginator = PageNumberPagination()
-    paginator.page_size = 2
+    paginator.page_size = 40  # ← 40 cars per page
 
-    paginated_cars = paginator.paginate_queryset(
-        cars,
-        request
-    )
+    paginated_cars = paginator.paginate_queryset(cars, request)
 
     serializer = CarSerializer(
         paginated_cars,
@@ -85,11 +87,12 @@ def car_list(request):
         context={"request": request}
     )
 
-    return paginator.get_paginated_response(
-        serializer.data
-    )
+    return paginator.get_paginated_response(serializer.data)
 
 
+# ============================================
+# 🔍 CAR DETAIL
+# ============================================
 class CarDetailView(RetrieveAPIView):
 
     queryset = Car.objects.all()
@@ -101,6 +104,9 @@ class CarDetailView(RetrieveAPIView):
         return context
 
 
+# ============================================
+# ✏️ MANAGE CAR (UPDATE/DELETE)
+# ============================================
 class CarManageView(RetrieveUpdateDestroyAPIView):
 
     queryset = Car.objects.all()
@@ -113,6 +119,9 @@ class CarManageView(RetrieveUpdateDestroyAPIView):
         return context
 
 
+# ============================================
+# 📊 MY CARS (DASHBOARD)
+# ============================================
 class MyCarsView(APIView):
 
     permission_classes = [IsAuthenticated]
@@ -130,6 +139,9 @@ class MyCarsView(APIView):
         return Response(serializer.data)
 
 
+# ============================================
+# 🖼️ UPLOAD CAR IMAGE
+# ============================================
 @extend_schema(
     request={
         'multipart/form-data': {
@@ -173,6 +185,9 @@ def upload_car_image(request, car_id):
     return Response(serializer.errors, status=400)
 
 
+# ============================================
+# 🗑️ DELETE CAR IMAGE
+# ============================================
 @extend_schema(
     responses={204: None}
 )
@@ -196,12 +211,14 @@ def delete_car_image(request, image_id):
         )
 
     car_image.image.delete(save=False)
-
     car_image.delete()
 
     return Response(status=204)
 
 
+# ============================================
+# ❤️ FAVORITES (TOGGLE)
+# ============================================
 class FavoriteView(APIView):
 
     permission_classes = [IsAuthenticated]
@@ -260,6 +277,9 @@ class FavoriteView(APIView):
         )
 
 
+# ============================================
+# 📋 FAVORITES LIST
+# ============================================
 class FavoriteListView(APIView):
 
     permission_classes = [IsAuthenticated]
@@ -279,6 +299,9 @@ class FavoriteListView(APIView):
         return Response(serializer.data)
 
 
+# ============================================
+# 📊 DASHBOARD STATS
+# ============================================
 class DashboardView(APIView):
 
     permission_classes = [IsAuthenticated]
@@ -299,6 +322,9 @@ class DashboardView(APIView):
         })
 
 
+# ============================================
+# 👤 PUBLIC USER PROFILE
+# ============================================
 class PublicUserView(APIView):
 
     def get(self, request, user_id):
