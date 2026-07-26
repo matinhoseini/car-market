@@ -30,7 +30,9 @@ const Header = memo(() => {
   const [user, setUser] = useState(null);
   const userMenuRef = useRef(null);
 
-  // ===== Memoized navigation items =====
+  // ============================================
+  // 📋 Memoized navigation items
+  // ============================================
   const navItems = useMemo(
     () => [
       { href: "/vehicles", label: "Vehicles", icon: CarFront },
@@ -53,32 +55,69 @@ const Header = memo(() => {
     [],
   );
 
-  // ===== Check authentication status =====
+  // ============================================
+  // 🔐 Check authentication status
+  // ============================================
   const checkAuth = useCallback(() => {
     const token = localStorage.getItem("access_token");
     const userData = localStorage.getItem("user");
+    console.log("🔍 Checking auth...", {
+      token: !!token,
+      userData: !!userData,
+    });
     if (token && userData) {
       try {
-        setUser(JSON.parse(userData));
+        const parsedUser = JSON.parse(userData);
+        setUser(parsedUser);
         setIsLoggedIn(true);
-      } catch {
+        console.log("✅ User set:", parsedUser.username);
+      } catch (e) {
         setIsLoggedIn(false);
         setUser(null);
+        console.error("❌ Error parsing user:", e);
       }
     } else {
       setIsLoggedIn(false);
       setUser(null);
+      console.log("❌ No user found");
     }
   }, []);
 
-  // ===== Check auth on mount and route change =====
+  // ============================================
+  // 🔄 Check auth on mount
+  // ============================================
   useEffect(() => {
     checkAuth();
-  }, [pathname, checkAuth]);
+  }, []); // ← فقط یک بار در mount اجرا میشه
 
-  // ===== Listen for storage changes (login/logout from other tabs) =====
+  // ============================================
+  // 🔄 Check auth when pathname changes (navigation)
+  // ============================================
+  useEffect(() => {
+    console.log("🔄 Pathname changed, checking auth...");
+    checkAuth();
+  }, [pathname]); // ← هر بار مسیر عوض میشه
+
+  // ============================================
+  // 📡 Listen for custom event (for same-tab updates)
+  // ============================================
+  useEffect(() => {
+    const handleUserUpdate = () => {
+      console.log("📡 user-updated event received");
+      checkAuth();
+    };
+    window.addEventListener("user-updated", handleUserUpdate);
+    return () => {
+      window.removeEventListener("user-updated", handleUserUpdate);
+    };
+  }, [checkAuth]);
+
+  // ============================================
+  // 📡 Listen for storage changes (for other tabs)
+  // ============================================
   useEffect(() => {
     const handleStorageChange = () => {
+      console.log("📡 storage event received");
       checkAuth();
     };
     window.addEventListener("storage", handleStorageChange);
@@ -87,7 +126,9 @@ const Header = memo(() => {
     };
   }, [checkAuth]);
 
-  // ===== Control header visibility on scroll =====
+  // ============================================
+  // 🖱️ Control header visibility on scroll
+  // ============================================
   useEffect(() => {
     const controlHeader = () => {
       const currentScrollY = window.scrollY;
@@ -103,7 +144,9 @@ const Header = memo(() => {
     return () => window.removeEventListener("scroll", controlHeader);
   }, [lastScrollY]);
 
-  // ===== Close user menu when clicking outside =====
+  // ============================================
+  // 🔒 Close user menu when clicking outside
+  // ============================================
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
@@ -114,7 +157,9 @@ const Header = memo(() => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // ===== Lock body scroll when mobile menu is open =====
+  // ============================================
+  // 🔒 Lock body scroll when mobile menu is open
+  // ============================================
   useEffect(() => {
     if (isMenuOpen) {
       document.body.style.overflow = "hidden";
@@ -126,7 +171,9 @@ const Header = memo(() => {
     };
   }, [isMenuOpen]);
 
-  // ===== Handle logout =====
+  // ============================================
+  // 🚪 Handle logout
+  // ============================================
   const handleLogout = useCallback(() => {
     localStorage.removeItem("access_token");
     localStorage.removeItem("refresh_token");
@@ -134,10 +181,14 @@ const Header = memo(() => {
     setIsLoggedIn(false);
     setUser(null);
     setIsUserMenuOpen(false);
+    // ===== اطلاع به سایر کامپوننت‌ها =====
+    window.dispatchEvent(new Event("user-updated"));
     router.push("/");
   }, [router]);
 
-  // ===== Handle dashboard click with token validation =====
+  // ============================================
+  // 🎯 Handle dashboard click with token validation
+  // ============================================
   const handleDashboardClick = useCallback(
     (e) => {
       const token = localStorage.getItem("access_token");
@@ -150,7 +201,9 @@ const Header = memo(() => {
     [router],
   );
 
-  // ===== Toggle menu handlers =====
+  // ============================================
+  // 🔄 Toggle menu handlers
+  // ============================================
   const toggleMenu = useCallback(() => {
     setIsMenuOpen((prev) => !prev);
   }, []);
@@ -159,7 +212,9 @@ const Header = memo(() => {
     setIsUserMenuOpen((prev) => !prev);
   }, []);
 
-  // ===== Check if link is active =====
+  // ============================================
+  // 📍 Check if link is active
+  // ============================================
   const isActive = useCallback(
     (href) => {
       if (href === "/") {
@@ -357,13 +412,11 @@ const Header = memo(() => {
       {/* ===== Mobile Menu Overlay ===== */}
       {isMenuOpen && (
         <>
-          {/* ===== Backdrop ===== */}
           <div
             className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9998] lg:hidden animate-fade-in"
             onClick={toggleMenu}
           />
 
-          {/* ===== Mobile Menu Panel ===== */}
           <div className="fixed top-0 right-0 h-full w-64 sm:w-72 bg-[rgb(var(--card))] shadow-2xl z-[9999] lg:hidden animate-slide-in-right">
             <div className="flex justify-between items-center p-4 border-b border-[rgb(var(--border))] h-14 md:h-16">
               <span className="text-base sm:text-lg font-bold text-gradient">
@@ -378,7 +431,6 @@ const Header = memo(() => {
             </div>
 
             <nav className="p-4 space-y-1 text-[rgb(var(--foreground))]">
-              {/* ===== Main nav items ===== */}
               {navItems.map((item) => {
                 const Icon = item.icon;
                 const active = isActive(item.href);
@@ -396,15 +448,12 @@ const Header = memo(() => {
                     `}
                     onClick={toggleMenu}
                   >
-                    <Icon
-                      className={`w-5 h-5 flex-shrink-0 ${active ? "text-primary-500" : "text-primary-500"}`}
-                    />
+                    <Icon className="w-5 h-5 flex-shrink-0 text-primary-500" />
                     <span>{item.label}</span>
                   </Link>
                 );
               })}
 
-              {/* ===== Dashboard link ===== */}
               <Link
                 href="/dashboard"
                 onClick={handleDashboardClick}
@@ -421,7 +470,6 @@ const Header = memo(() => {
                 <span>Dashboard</span>
               </Link>
 
-              {/* ===== Protected nav items ===== */}
               {isLoggedIn &&
                 protectedNavItems.slice(1).map((item) => {
                   const Icon = item.icon;
@@ -446,7 +494,6 @@ const Header = memo(() => {
                   );
                 })}
 
-              {/* ===== Auth actions ===== */}
               <div className="border-t border-[rgb(var(--border))] my-4 pt-4">
                 {isLoggedIn ? (
                   <button
