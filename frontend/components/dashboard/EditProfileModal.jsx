@@ -6,7 +6,7 @@ import { createPortal } from "react-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { X, User, Mail, Phone, MapPin, Save, Loader2 } from "lucide-react";
+import { X, User, Mail, Save, Loader2 } from "lucide-react";
 import { authService } from "../../services/auth.service";
 import toast from "react-hot-toast";
 
@@ -19,8 +19,6 @@ const profileSchema = z.object({
     .min(3, "Username must be at least 3 characters")
     .max(50, "Username too long"),
   email: z.string().email("Invalid email address"),
-  phone: z.string().optional(),
-  city: z.string().optional(),
 });
 
 export default function EditProfileModal({ isOpen, onClose, user, onUpdate }) {
@@ -38,8 +36,6 @@ export default function EditProfileModal({ isOpen, onClose, user, onUpdate }) {
     defaultValues: {
       username: "",
       email: "",
-      phone: "",
-      city: "",
     },
   });
 
@@ -51,8 +47,6 @@ export default function EditProfileModal({ isOpen, onClose, user, onUpdate }) {
       reset({
         username: user.username || "",
         email: user.email || "",
-        phone: user.phone || "",
-        city: user.city || "",
       });
     }
   }, [user, reset]);
@@ -66,8 +60,6 @@ export default function EditProfileModal({ isOpen, onClose, user, onUpdate }) {
       const changedData = {};
       if (data.username !== user.username) changedData.username = data.username;
       if (data.email !== user.email) changedData.email = data.email;
-      if (data.phone !== user.phone) changedData.phone = data.phone;
-      if (data.city !== user.city) changedData.city = data.city;
 
       if (Object.keys(changedData).length === 0) {
         toast.error("No changes to update");
@@ -77,12 +69,21 @@ export default function EditProfileModal({ isOpen, onClose, user, onUpdate }) {
       const updatedUser = await authService.updateProfile(changedData);
       toast.success("Profile updated successfully!");
 
-      // ===== Update localStorage =====
-      const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
-      localStorage.setItem(
-        "user",
-        JSON.stringify({ ...storedUser, ...updatedUser }),
-      );
+      // ===== ✅ Fix: Safe localStorage update =====
+      const storedUser = localStorage.getItem("user");
+      if (storedUser) {
+        try {
+          const parsedUser = JSON.parse(storedUser);
+          localStorage.setItem(
+            "user",
+            JSON.stringify({ ...parsedUser, ...updatedUser }),
+          );
+        } catch {
+          localStorage.setItem("user", JSON.stringify(updatedUser));
+        }
+      } else {
+        localStorage.setItem("user", JSON.stringify(updatedUser));
+      }
 
       onUpdate(updatedUser);
       onClose();
@@ -196,44 +197,6 @@ export default function EditProfileModal({ isOpen, onClose, user, onUpdate }) {
               )}
             </div>
 
-            {/* Phone */}
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                <Phone className="w-4 h-4 inline mr-1" />
-                Phone
-              </label>
-              <input
-                type="tel"
-                {...register("phone")}
-                className={`input w-full ${errors.phone ? "border-red-500 focus:ring-red-500" : ""}`}
-                placeholder="Enter phone number"
-              />
-              {errors.phone && (
-                <p className="text-red-500 text-xs mt-1">
-                  {errors.phone.message}
-                </p>
-              )}
-            </div>
-
-            {/* City */}
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                <MapPin className="w-4 h-4 inline mr-1" />
-                City
-              </label>
-              <input
-                type="text"
-                {...register("city")}
-                className={`input w-full ${errors.city ? "border-red-500 focus:ring-red-500" : ""}`}
-                placeholder="Enter your city"
-              />
-              {errors.city && (
-                <p className="text-red-500 text-xs mt-1">
-                  {errors.city.message}
-                </p>
-              )}
-            </div>
-
             {/* ===== Actions ===== */}
             <div className="flex gap-3 pt-4 border-t border-[rgb(var(--border))]">
               <button
@@ -266,6 +229,6 @@ export default function EditProfileModal({ isOpen, onClose, user, onUpdate }) {
         </div>
       </div>
     </>,
-    document.body, // ← رندر شدن در body
+    document.body,
   );
 }

@@ -16,8 +16,6 @@ import {
   PlusCircle,
   RefreshCw,
   Edit,
-  Phone,
-  MapPin,
 } from "lucide-react";
 import { authService } from "../../services/auth.service";
 import { vehiclesService } from "../../services/vehicles.service";
@@ -218,8 +216,6 @@ export default function DashboardPage() {
     return [
       { icon: User, label: "Username", value: user.username },
       { icon: Mail, label: "Email", value: user.email },
-      { icon: Phone, label: "Phone", value: user.phone || "Not set" },
-      { icon: MapPin, label: "City", value: user.city || "Not set" },
       {
         icon: Calendar,
         label: "Joined",

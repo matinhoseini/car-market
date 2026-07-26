@@ -2,46 +2,53 @@
 import { api } from "./apiClient";
 
 export const authService = {
-  // ===== Get user profile =====
+  // ============================================
+  // 📝 Register
+  // ============================================
+  register: async (data) => {
+    console.log("📤 Sending to server:", data);
+    const response = await api.post("/users/register/", data);
+    return response.data;
+  },
+
+  // ============================================
+  // 🔑 Login (JWT)
+  // ============================================
+  login: async (data) => {
+    const response = await api.post("/token/", data);
+    return response.data;
+  },
+
+  // ============================================
+  // 🔄 Refresh Token
+  // ============================================
+  refreshToken: async (refresh) => {
+    const response = await api.post("/token/refresh/", { refresh });
+    return response.data;
+  },
+
+  // ============================================
+  // 👤 Get Profile (GET)
+  // ============================================
   getProfile: async () => {
     const response = await api.get("/users/profile/");
     return response.data;
   },
 
-  // ===== Update user profile (PATCH - only changed fields) =====
+  // ============================================
+  // ✏️ Update Profile (PATCH - only changed fields)
+  // ============================================
   updateProfile: async (data) => {
     const response = await api.patch("/users/profile/", data);
     return response.data;
   },
 
-  // ===== Change password =====
-  changePassword: async (data) => {
-    const response = await api.post("/users/change-password/", data);
-    return response.data;
-  },
-
-  // ===== Login =====
-  login: async (data) => {
-    const response = await api.post("/users/login/", data);
-    return response.data;
-  },
-
-  // ===== Register =====
-  register: async (data) => {
-    const response = await api.post("/users/register/", data);
-    return response.data;
-  },
-
-  // ===== Logout =====
-  logout: async () => {
-    try {
-      await api.post("/users/logout/");
-    } catch {
-      // Ignore errors
-    } finally {
-      localStorage.removeItem("access_token");
-      localStorage.removeItem("refresh_token");
-      localStorage.removeItem("user");
-    }
+  // ============================================
+  // 🚪 Logout
+  // ============================================
+  logout: () => {
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
+    localStorage.removeItem("user");
   },
 };
