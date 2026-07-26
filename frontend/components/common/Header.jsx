@@ -25,7 +25,7 @@ import { useAuth } from "../../hooks/useAuth";
 // ============================================
 const Header = memo(() => {
   const router = useRouter();
-  const { user, loading, logout } = useAuth(); // ← از API میگیره
+  const { user, loading, logout } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
@@ -139,6 +139,15 @@ const Header = memo(() => {
   );
 
   // ============================================
+  // 🚪 Handle logout click
+  // ============================================
+  const handleLogoutClick = useCallback(() => {
+    logout();
+    setIsUserMenuOpen(false);
+    setIsMenuOpen(false);
+  }, [logout]);
+
+  // ============================================
   // ⏳ Loading state
   // ============================================
   if (loading) {
@@ -221,7 +230,6 @@ const Header = memo(() => {
                 Dashboard
               </Link>
 
-              {/* ===== Protected nav items (only for logged in users) ===== */}
               {user &&
                 protectedNavItems.slice(1).map((item) => {
                   const active = isActive(item.href);
@@ -263,7 +271,6 @@ const Header = memo(() => {
                     </span>
                   </button>
 
-                  {/* ===== User dropdown menu ===== */}
                   {isUserMenuOpen && (
                     <div className="absolute right-0 mt-2 w-48 bg-[rgb(var(--card))] rounded-xl shadow-xl border border-[rgb(var(--border))] py-2 z-[9999] animate-fade-in">
                       <div className="px-4 py-2 border-b border-[rgb(var(--border))]">
@@ -298,7 +305,7 @@ const Header = memo(() => {
                       })}
 
                       <button
-                        onClick={logout}
+                        onClick={handleLogoutClick}
                         className="flex items-center gap-3 px-4 py-2 hover:bg-red-50 dark:hover:bg-red-950/50 transition-all duration-200 hover:scale-95 text-sm text-red-500 w-full"
                       >
                         <LogOut className="w-4 h-4" /> Sign Out
@@ -325,7 +332,6 @@ const Header = memo(() => {
                 </div>
               )}
 
-              {/* ===== Mobile menu toggle ===== */}
               <button
                 onClick={toggleMenu}
                 className="lg:hidden p-1.5 md:p-2 rounded-lg hover:bg-[rgb(var(--muted))] transition-all duration-200 hover:scale-95 relative z-[9999]"
@@ -342,7 +348,7 @@ const Header = memo(() => {
         </div>
       </header>
 
-      {/* ===== Mobile Menu Overlay ===== */}
+      {/* ===== Mobile Menu ===== */}
       {isMenuOpen && (
         <>
           <div
@@ -431,7 +437,7 @@ const Header = memo(() => {
                 {user ? (
                   <button
                     onClick={() => {
-                      logout();
+                      handleLogoutClick();
                       toggleMenu();
                     }}
                     className="flex items-center gap-4 px-4 py-3 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/50 transition-all duration-200 hover:scale-95 text-red-500 w-full"
