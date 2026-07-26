@@ -30,12 +30,8 @@ export default function LoginForm() {
 
       toast.success("Login successful!");
 
-      // ===== ✅ ارسال event برای به‌روزرسانی هدر =====
-      window.dispatchEvent(new Event("storage"));
-      window.dispatchEvent(new Event("user-updated"));
-
-      // ===== رفتن به داشبورد =====
-      router.push("/dashboard");
+      // ===== ✅ رفرش کامل صفحه =====
+      window.location.href = "/dashboard";
     } catch (error) {
       console.error("Login error:", error);
       toast.error(error.response?.data?.error || "Invalid credentials");

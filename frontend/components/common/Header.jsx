@@ -61,49 +61,33 @@ const Header = memo(() => {
   const checkAuth = useCallback(() => {
     const token = localStorage.getItem("access_token");
     const userData = localStorage.getItem("user");
-    console.log("🔍 Checking auth...", {
-      token: !!token,
-      userData: !!userData,
-    });
     if (token && userData) {
       try {
-        const parsedUser = JSON.parse(userData);
-        setUser(parsedUser);
+        setUser(JSON.parse(userData));
         setIsLoggedIn(true);
-        console.log("✅ User set:", parsedUser.username);
-      } catch (e) {
+      } catch {
         setIsLoggedIn(false);
         setUser(null);
-        console.error("❌ Error parsing user:", e);
       }
     } else {
       setIsLoggedIn(false);
       setUser(null);
-      console.log("❌ No user found");
     }
   }, []);
 
   // ============================================
-  // 🔄 Check auth on mount
+  // 🔄 Check auth on mount and route change
   // ============================================
   useEffect(() => {
     checkAuth();
-  }, []); // ← فقط یک بار در mount اجرا میشه
+  }, [pathname, checkAuth]);
 
   // ============================================
-  // 🔄 Check auth when pathname changes (navigation)
-  // ============================================
-  useEffect(() => {
-    console.log("🔄 Pathname changed, checking auth...");
-    checkAuth();
-  }, [pathname]); // ← هر بار مسیر عوض میشه
-
-  // ============================================
-  // 📡 Listen for custom event (for same-tab updates)
+  // 📡 Listen for user-updated event (same tab)
   // ============================================
   useEffect(() => {
     const handleUserUpdate = () => {
-      console.log("📡 user-updated event received");
+      console.log("📡 user-updated event received, refreshing header...");
       checkAuth();
     };
     window.addEventListener("user-updated", handleUserUpdate);
@@ -113,11 +97,10 @@ const Header = memo(() => {
   }, [checkAuth]);
 
   // ============================================
-  // 📡 Listen for storage changes (for other tabs)
+  // 📡 Listen for storage changes (other tabs)
   // ============================================
   useEffect(() => {
     const handleStorageChange = () => {
-      console.log("📡 storage event received");
       checkAuth();
     };
     window.addEventListener("storage", handleStorageChange);
@@ -181,7 +164,7 @@ const Header = memo(() => {
     setIsLoggedIn(false);
     setUser(null);
     setIsUserMenuOpen(false);
-    // ===== اطلاع به سایر کامپوننت‌ها =====
+    // ===== Notify header to update =====
     window.dispatchEvent(new Event("user-updated"));
     router.push("/");
   }, [router]);
