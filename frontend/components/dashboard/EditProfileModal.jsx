@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -109,14 +110,17 @@ export default function EditProfileModal({ isOpen, onClose, user, onUpdate }) {
   }, [isOpen, onClose]);
 
   // ============================================
-  // Watch form values for real-time validation
+  // 👀 Watch form values
   // ============================================
   const watchUsername = watch("username");
   const watchEmail = watch("email");
 
   if (!isOpen) return null;
 
-  return (
+  // ============================================
+  // 🎯 Render with createPortal
+  // ============================================
+  return createPortal(
     <>
       {/* ===== Backdrop ===== */}
       <div
@@ -261,6 +265,7 @@ export default function EditProfileModal({ isOpen, onClose, user, onUpdate }) {
           </form>
         </div>
       </div>
-    </>
+    </>,
+    document.body, // ← رندر شدن در body
   );
 }
