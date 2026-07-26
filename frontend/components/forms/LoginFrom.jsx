@@ -19,42 +19,26 @@ export default function LoginForm() {
     formState: { errors },
   } = useForm();
 
-  // ===== Form Submission Handler =====
   const onSubmit = async (data) => {
     setIsLoading(true);
-
     try {
       const response = await authService.login(data);
 
-      // Store tokens in localStorage
       localStorage.setItem("access_token", response.access);
       localStorage.setItem("refresh_token", response.refresh);
       localStorage.setItem("user", JSON.stringify(response.user));
 
-      // Dispatch storage event for header update
+      toast.success("Login successful!");
+
+      // ===== ✅ ارسال event برای به‌روزرسانی هدر =====
       window.dispatchEvent(new Event("storage"));
+      window.dispatchEvent(new Event("user-updated"));
 
-      toast.success("Welcome back! 🎉", {
-        icon: "👋",
-        duration: 3000,
-      });
-
+      // ===== رفتن به داشبورد =====
       router.push("/dashboard");
     } catch (error) {
-      console.error("❌ Login error:", error);
-
-      let errorMessage = "Invalid username or password";
-
-      if (error.response?.data) {
-        const detail = error.response.data.detail;
-        if (detail) {
-          errorMessage = detail;
-        }
-      }
-
-      toast.error(errorMessage, {
-        duration: 4000,
-      });
+      console.error("Login error:", error);
+      toast.error(error.response?.data?.error || "Invalid credentials");
     } finally {
       setIsLoading(false);
     }
@@ -62,7 +46,7 @@ export default function LoginForm() {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-      {/* ===== Username Field ===== */}
+      {/* Username */}
       <div>
         <label className="label">Username</label>
         <div className="relative">
@@ -85,7 +69,7 @@ export default function LoginForm() {
         )}
       </div>
 
-      {/* ===== Password Field ===== */}
+      {/* Password */}
       <div>
         <label className="label">Password</label>
         <div className="relative">
@@ -119,14 +103,14 @@ export default function LoginForm() {
         )}
       </div>
 
-      {/* ===== Submit Button ===== */}
+      {/* Submit Button */}
       <button
         type="submit"
         disabled={isLoading}
         className="btn-primary w-full py-3 text-base"
       >
         {isLoading ? (
-          <span className="flex items-center gap-2">
+          <span className="flex items-center justify-center gap-2">
             <span className="spinner w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
             Signing in...
           </span>

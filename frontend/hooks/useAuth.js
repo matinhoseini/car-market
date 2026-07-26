@@ -3,11 +3,12 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { usePathname } from "next/navigation";
+import { authService } from "../services/auth.service";
 import { getStorage } from "../helpers/storage";
 import { STORAGE_KEYS } from "../helpers/constants";
 
 // ============================================
-// 🔐 Main Auth Hook
+// 🔐 Main Auth Hook - fetches user from API
 // ============================================
 export const useAuth = () => {
   const [user, setUser] = useState(null);
@@ -15,25 +16,35 @@ export const useAuth = () => {
   const pathname = usePathname();
 
   // ============================================
-  // 📥 Fetch user from localStorage
+  // 📥 Fetch user from API (not localStorage)
   // ============================================
-  const fetchUser = useCallback(() => {
+  const fetchUser = useCallback(async () => {
     setLoading(true);
-    const userData = getStorage(STORAGE_KEYS.USER);
-    if (userData) {
-      try {
-        setUser(JSON.parse(userData));
-      } catch {
-        setUser(null);
-      }
-    } else {
+    const token = getStorage(STORAGE_KEYS.ACCESS_TOKEN);
+
+    if (!token) {
       setUser(null);
+      setLoading(false);
+      return;
     }
-    setLoading(false);
+
+    try {
+      const userData = await authService.getProfile();
+      setUser(userData);
+
+      // ===== Update localStorage for other components =====
+      localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(userData));
+    } catch (error) {
+      console.error("❌ Error fetching user:", error);
+      setUser(null);
+      localStorage.removeItem(STORAGE_KEYS.USER);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   // ============================================
-  // 🔄 Auto-refresh user when route changes
+  // 🔄 Auto-fetch user when route changes
   // ============================================
   useEffect(() => {
     fetchUser();
@@ -47,16 +58,18 @@ export const useAuth = () => {
       fetchUser();
     };
     window.addEventListener("storage", handleStorageChange);
-    return () => window.removeEventListener("storage", handleStorageChange);
+    window.addEventListener("user-updated", handleStorageChange);
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("user-updated", handleStorageChange);
+    };
   }, [fetchUser]);
 
   // ============================================
-  // 🚪 Logout handler
+  // 🚪 Logout
   // ============================================
-  const logout = useCallback(() => {
-    localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
-    localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
-    localStorage.removeItem(STORAGE_KEYS.USER);
+  const logout = useCallback(async () => {
+    await authService.logout();
     setUser(null);
   }, []);
 
@@ -67,28 +80,5 @@ export const useAuth = () => {
     fetchUser();
   }, [fetchUser]);
 
-  // ============================================
-  // ✏️ Update user (after profile edit)
-  // ============================================
-  const updateUser = useCallback((newUserData) => {
-    setUser(newUserData);
-    const storedUser = localStorage.getItem(STORAGE_KEYS.USER);
-    if (storedUser) {
-      try {
-        const parsedUser = JSON.parse(storedUser);
-        localStorage.setItem(
-          STORAGE_KEYS.USER,
-          JSON.stringify({ ...parsedUser, ...newUserData }),
-        );
-      } catch {
-        localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(newUserData));
-      }
-    } else {
-      localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(newUserData));
-    }
-    // Notify other tabs
-    window.dispatchEvent(new Event("storage"));
-  }, []);
-
-  return { user, loading, logout, refetch, updateUser, setUser };
+  return { user, loading, logout, refetch, setUser };
 };

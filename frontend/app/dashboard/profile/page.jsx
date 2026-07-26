@@ -45,13 +45,14 @@ export default function ProfilePage() {
     const fetchProfile = async () => {
       try {
         const data = await authService.getProfile();
+        console.log("📥 Profile data:", data);
         setUser(data);
         setFormData({
           username: data.username || "",
           email: data.email || "",
         });
       } catch (error) {
-        console.error("Error fetching profile:", error);
+        console.error("❌ Error fetching profile:", error);
         toast.error("Failed to load profile");
       } finally {
         setLoading(false);
@@ -68,7 +69,6 @@ export default function ProfilePage() {
     (e) => {
       const { name, value } = e.target;
       setFormData((prev) => ({ ...prev, [name]: value }));
-      // Clear error for this field
       if (errors[name]) {
         setErrors((prev) => ({ ...prev, [name]: "" }));
       }
@@ -95,6 +95,24 @@ export default function ProfilePage() {
   }, [formData]);
 
   // ============================================
+  // 📅 Format date safely
+  // ============================================
+  const formatDate = (dateString) => {
+    if (!dateString) return "N/A";
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return "N/A";
+      return date.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+    } catch {
+      return "N/A";
+    }
+  };
+
+  // ============================================
   // 💾 Save profile
   // ============================================
   const handleSave = useCallback(async () => {
@@ -102,11 +120,13 @@ export default function ProfilePage() {
 
     setIsSaving(true);
     try {
-      // Only send changed fields
       const changedData = {};
-      if (formData.username !== user.username)
+      if (formData.username !== user.username) {
         changedData.username = formData.username;
-      if (formData.email !== user.email) changedData.email = formData.email;
+      }
+      if (formData.email !== user.email) {
+        changedData.email = formData.email;
+      }
 
       if (Object.keys(changedData).length === 0) {
         toast.error("No changes to update");
@@ -114,12 +134,13 @@ export default function ProfilePage() {
         return;
       }
 
+      console.log("📤 Updating profile with:", changedData);
       const updatedUser = await authService.updateProfile(changedData);
+      console.log("✅ Profile updated:", updatedUser);
 
-      // Update local state
       setUser(updatedUser);
 
-      // Update localStorage
+      // ===== Update localStorage safely =====
       const storedUser = localStorage.getItem("user");
       if (storedUser) {
         try {
@@ -135,10 +156,13 @@ export default function ProfilePage() {
         localStorage.setItem("user", JSON.stringify(updatedUser));
       }
 
+      // ===== Notify header to update =====
+      window.dispatchEvent(new Event("storage"));
+
       toast.success("Profile updated successfully!");
       setIsEditing(false);
     } catch (error) {
-      console.error("Error updating profile:", error);
+      console.error("❌ Error updating profile:", error);
       toast.error(error.response?.data?.error || "Failed to update profile");
     } finally {
       setIsSaving(false);
@@ -217,12 +241,12 @@ export default function ProfilePage() {
           {/* ===== Avatar ===== */}
           <div className="flex items-center gap-6 mb-8">
             <div className="w-20 h-20 md:w-24 md:h-24 rounded-full bg-gradient-to-r from-primary-500 to-accent-500 flex items-center justify-center text-white text-3xl md:text-4xl font-bold flex-shrink-0">
-              {user.username.charAt(0).toUpperCase()}
+              {user.username?.charAt(0).toUpperCase() || "U"}
             </div>
             <div>
-              <h2 className="text-xl font-bold">{user.username}</h2>
+              <h2 className="text-xl font-bold">{user.username || "User"}</h2>
               <p className="text-[rgb(var(--muted-foreground))]">
-                {user.email}
+                {user.email || "No email"}
               </p>
               <div className="flex items-center gap-2 mt-2">
                 <span className="badge badge-primary">Member</span>
@@ -249,7 +273,9 @@ export default function ProfilePage() {
                   name="username"
                   value={formData.username}
                   onChange={handleChange}
-                  className={`input w-full ${errors.username ? "border-red-500 focus:ring-red-500" : ""}`}
+                  className={`input w-full ${
+                    errors.username ? "border-red-500 focus:ring-red-500" : ""
+                  }`}
                   placeholder="Enter username"
                 />
                 {errors.username && (
@@ -268,7 +294,9 @@ export default function ProfilePage() {
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
-                  className={`input w-full ${errors.email ? "border-red-500 focus:ring-red-500" : ""}`}
+                  className={`input w-full ${
+                    errors.email ? "border-red-500 focus:ring-red-500" : ""
+                  }`}
                   placeholder="Enter email"
                 />
                 {errors.email && (
@@ -283,9 +311,7 @@ export default function ProfilePage() {
                   Joined
                 </label>
                 <p className="input w-full bg-[rgb(var(--muted))] cursor-not-allowed">
-                  {new Date(
-                    user.date_joined || Date.now(),
-                  ).toLocaleDateString()}
+                  {formatDate(user.date_joined)}
                 </p>
               </div>
 
@@ -329,7 +355,7 @@ export default function ProfilePage() {
                     <p className="text-sm text-[rgb(var(--muted-foreground))]">
                       Username
                     </p>
-                    <p className="font-medium">{user.username}</p>
+                    <p className="font-medium">{user.username || "N/A"}</p>
                   </div>
                 </div>
               </div>
@@ -342,7 +368,7 @@ export default function ProfilePage() {
                     <p className="text-sm text-[rgb(var(--muted-foreground))]">
                       Email
                     </p>
-                    <p className="font-medium">{user.email}</p>
+                    <p className="font-medium">{user.email || "N/A"}</p>
                   </div>
                 </div>
               </div>
@@ -356,9 +382,7 @@ export default function ProfilePage() {
                       Joined
                     </p>
                     <p className="font-medium">
-                      {new Date(
-                        user.date_joined || Date.now(),
-                      ).toLocaleDateString()}
+                      {formatDate(user.date_joined)}
                     </p>
                   </div>
                 </div>
