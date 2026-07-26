@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { authService } from "../services/auth.service";
 import { getStorage } from "../helpers/storage";
 import { STORAGE_KEYS } from "../helpers/constants";
@@ -11,6 +11,7 @@ import { STORAGE_KEYS } from "../helpers/constants";
 // 🔐 Main Auth Hook - fetches user from API
 // ============================================
 export const useAuth = () => {
+  const router = useRouter();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const pathname = usePathname();
@@ -58,20 +59,27 @@ export const useAuth = () => {
       fetchUser();
     };
     window.addEventListener("storage", handleStorageChange);
-    window.addEventListener("user-updated", handleStorageChange);
     return () => {
       window.removeEventListener("storage", handleStorageChange);
-      window.removeEventListener("user-updated", handleStorageChange);
     };
   }, [fetchUser]);
 
   // ============================================
-  // 🚪 Logout
+  // 🚪 Logout - clears everything and redirects
   // ============================================
   const logout = useCallback(async () => {
-    await authService.logout();
+    // ===== Clear localStorage =====
+    localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
+    localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
+    localStorage.removeItem(STORAGE_KEYS.USER);
+
+    // ===== Clear state =====
     setUser(null);
-  }, []);
+
+    // ===== Redirect to home page =====
+    router.push("/");
+    router.refresh(); // ← رفرش Next.js
+  }, [router]);
 
   // ============================================
   // 🔄 Manual refresh

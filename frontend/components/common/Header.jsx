@@ -17,17 +17,19 @@ import {
   PlusCircle,
 } from "lucide-react";
 import DarkToggle from "./DarkToggle";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
+import { useAuth } from "../../hooks/useAuth";
 
+// ============================================
+// 📦 Header Component with useAuth
+// ============================================
 const Header = memo(() => {
   const router = useRouter();
-  const pathname = usePathname();
+  const { user, loading, logout } = useAuth(); // ← از API میگیره
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
-  const [user, setUser] = useState(null);
   const userMenuRef = useRef(null);
 
   // ============================================
@@ -56,58 +58,14 @@ const Header = memo(() => {
   );
 
   // ============================================
-  // 🔐 Check authentication status
+  // 📍 Check if link is active
   // ============================================
-  const checkAuth = useCallback(() => {
-    const token = localStorage.getItem("access_token");
-    const userData = localStorage.getItem("user");
-    if (token && userData) {
-      try {
-        setUser(JSON.parse(userData));
-        setIsLoggedIn(true);
-      } catch {
-        setIsLoggedIn(false);
-        setUser(null);
-      }
-    } else {
-      setIsLoggedIn(false);
-      setUser(null);
+  const isActive = useCallback((href) => {
+    if (href === "/") {
+      return window.location.pathname === href;
     }
+    return window.location.pathname.startsWith(href);
   }, []);
-
-  // ============================================
-  // 🔄 Check auth on mount and route change
-  // ============================================
-  useEffect(() => {
-    checkAuth();
-  }, [pathname, checkAuth]);
-
-  // ============================================
-  // 📡 Listen for user-updated event (same tab)
-  // ============================================
-  useEffect(() => {
-    const handleUserUpdate = () => {
-      console.log("📡 user-updated event received, refreshing header...");
-      checkAuth();
-    };
-    window.addEventListener("user-updated", handleUserUpdate);
-    return () => {
-      window.removeEventListener("user-updated", handleUserUpdate);
-    };
-  }, [checkAuth]);
-
-  // ============================================
-  // 📡 Listen for storage changes (other tabs)
-  // ============================================
-  useEffect(() => {
-    const handleStorageChange = () => {
-      checkAuth();
-    };
-    window.addEventListener("storage", handleStorageChange);
-    return () => {
-      window.removeEventListener("storage", handleStorageChange);
-    };
-  }, [checkAuth]);
 
   // ============================================
   // 🖱️ Control header visibility on scroll
@@ -155,22 +113,18 @@ const Header = memo(() => {
   }, [isMenuOpen]);
 
   // ============================================
-  // 🚪 Handle logout
+  // 🎯 Toggle menu handlers
   // ============================================
-  const handleLogout = useCallback(() => {
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("refresh_token");
-    localStorage.removeItem("user");
-    setIsLoggedIn(false);
-    setUser(null);
-    setIsUserMenuOpen(false);
-    // ===== Notify header to update =====
-    window.dispatchEvent(new Event("user-updated"));
-    router.push("/");
-  }, [router]);
+  const toggleMenu = useCallback(() => {
+    setIsMenuOpen((prev) => !prev);
+  }, []);
+
+  const toggleUserMenu = useCallback(() => {
+    setIsUserMenuOpen((prev) => !prev);
+  }, []);
 
   // ============================================
-  // 🎯 Handle dashboard click with token validation
+  // 🚪 Handle dashboard click with token validation
   // ============================================
   const handleDashboardClick = useCallback(
     (e) => {
@@ -185,29 +139,25 @@ const Header = memo(() => {
   );
 
   // ============================================
-  // 🔄 Toggle menu handlers
+  // ⏳ Loading state
   // ============================================
-  const toggleMenu = useCallback(() => {
-    setIsMenuOpen((prev) => !prev);
-  }, []);
-
-  const toggleUserMenu = useCallback(() => {
-    setIsUserMenuOpen((prev) => !prev);
-  }, []);
+  if (loading) {
+    return (
+      <header className="header py-0 h-14 md:h-16 lg:h-16 fixed top-0 left-0 right-0 z-[9999] bg-[rgb(var(--card))] border-b border-[rgb(var(--border))]">
+        <div className="container-custom h-full flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Car className="text-primary-500 w-5 h-5 animate-pulse" />
+            <span className="text-lg font-bold text-gradient">CarMarket</span>
+          </div>
+          <div className="w-8 h-8 rounded-full bg-[rgb(var(--muted))] animate-pulse"></div>
+        </div>
+      </header>
+    );
+  }
 
   // ============================================
-  // 📍 Check if link is active
+  // 🎨 Render
   // ============================================
-  const isActive = useCallback(
-    (href) => {
-      if (href === "/") {
-        return pathname === href;
-      }
-      return pathname.startsWith(href);
-    },
-    [pathname],
-  );
-
   return (
     <>
       <header
@@ -272,7 +222,7 @@ const Header = memo(() => {
               </Link>
 
               {/* ===== Protected nav items (only for logged in users) ===== */}
-              {isLoggedIn &&
+              {user &&
                 protectedNavItems.slice(1).map((item) => {
                   const active = isActive(item.href);
                   return (
@@ -299,7 +249,7 @@ const Header = memo(() => {
             <div className="flex items-center gap-1.5 md:gap-2 lg:gap-2">
               <DarkToggle />
 
-              {isLoggedIn && user ? (
+              {user ? (
                 <div className="relative" ref={userMenuRef}>
                   <button
                     onClick={toggleUserMenu}
@@ -348,7 +298,7 @@ const Header = memo(() => {
                       })}
 
                       <button
-                        onClick={handleLogout}
+                        onClick={logout}
                         className="flex items-center gap-3 px-4 py-2 hover:bg-red-50 dark:hover:bg-red-950/50 transition-all duration-200 hover:scale-95 text-sm text-red-500 w-full"
                       >
                         <LogOut className="w-4 h-4" /> Sign Out
@@ -453,7 +403,7 @@ const Header = memo(() => {
                 <span>Dashboard</span>
               </Link>
 
-              {isLoggedIn &&
+              {user &&
                 protectedNavItems.slice(1).map((item) => {
                   const Icon = item.icon;
                   const active = isActive(item.href);
@@ -478,10 +428,10 @@ const Header = memo(() => {
                 })}
 
               <div className="border-t border-[rgb(var(--border))] my-4 pt-4">
-                {isLoggedIn ? (
+                {user ? (
                   <button
                     onClick={() => {
-                      handleLogout();
+                      logout();
                       toggleMenu();
                     }}
                     className="flex items-center gap-4 px-4 py-3 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/50 transition-all duration-200 hover:scale-95 text-red-500 w-full"
