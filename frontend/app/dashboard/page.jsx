@@ -8,23 +8,26 @@ import {
   User,
   Mail,
   Calendar,
-  Shield,
   LogOut,
   Settings,
   Car,
   Heart,
   ShoppingBag,
   PlusCircle,
+  RefreshCw,
+  Edit,
+  Phone,
+  MapPin,
 } from "lucide-react";
 import { authService } from "../../services/auth.service";
 import { vehiclesService } from "../../services/vehicles.service";
 import toast from "react-hot-toast";
 import VehicleActionsModal from "../../components/dashboard/VehicleActionsModal";
 import EditVehicleModal from "../../components/dashboard/EditVehicleModal";
+import EditProfileModal from "../../components/dashboard/EditProfileModal";
 import VehicleCard from "../../components/vehicles/VehicleCard";
 
 // ===== Import helpers =====
-import { formatPrice } from "../../helpers/format";
 import { getStorage, removeStorage } from "../../helpers/storage";
 import { STORAGE_KEYS } from "../../helpers/constants";
 
@@ -36,6 +39,7 @@ export default function DashboardPage() {
   const [carsLoading, setCarsLoading] = useState(true);
   const [favorites, setFavorites] = useState([]);
   const [favoritesLoading, setFavoritesLoading] = useState(true);
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
 
   // ===== Modal states =====
   const [selectedVehicle, setSelectedVehicle] = useState(null);
@@ -123,6 +127,11 @@ export default function DashboardPage() {
     router.push("/auth/login");
   }, [router]);
 
+  const handleUpdateUser = useCallback((updatedUser) => {
+    setUser(updatedUser);
+    toast.success("Profile updated!");
+  }, []);
+
   const openActions = useCallback((vehicle) => {
     setSelectedVehicle(vehicle);
     setIsActionsModalOpen(true);
@@ -161,6 +170,13 @@ export default function DashboardPage() {
     setIsEditModalOpen(false);
     setSelectedVehicle(null);
   }, []);
+
+  // ===== Manual refresh =====
+  const refreshData = useCallback(() => {
+    fetchMyCars();
+    fetchFavorites();
+    toast.success("Refreshed!");
+  }, [fetchMyCars, fetchFavorites]);
 
   // ===== Memoized stats cards =====
   const statsCards = useMemo(
@@ -202,10 +218,12 @@ export default function DashboardPage() {
     return [
       { icon: User, label: "Username", value: user.username },
       { icon: Mail, label: "Email", value: user.email },
+      { icon: Phone, label: "Phone", value: user.phone || "Not set" },
+      { icon: MapPin, label: "City", value: user.city || "Not set" },
       {
         icon: Calendar,
         label: "Joined",
-        value: new Date().toLocaleDateString(),
+        value: new Date(user.date_joined || Date.now()).toLocaleDateString(),
       },
     ];
   }, [user]);
@@ -227,20 +245,30 @@ export default function DashboardPage() {
     <div className="min-h-[calc(100vh-80px)] bg-[rgb(var(--background))] py-8">
       <div className="container-custom">
         {/* ===== Header ===== */}
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex flex-wrap justify-between items-center gap-4 mb-8">
           <div>
             <h1 className="text-3xl font-bold font-heading">Dashboard</h1>
             <p className="text-[rgb(var(--muted-foreground))] mt-1">
               Welcome back, {user.username}! 👋
             </p>
           </div>
-          <button
-            onClick={handleLogout}
-            className="btn-danger btn-sm flex items-center gap-2"
-          >
-            <LogOut className="w-4 h-4" />
-            Logout
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={refreshData}
+              className="btn-outline btn-sm flex items-center gap-1"
+              aria-label="Refresh data"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Refresh
+            </button>
+            <button
+              onClick={handleLogout}
+              className="btn-danger btn-sm flex items-center gap-2"
+            >
+              <LogOut className="w-4 h-4" />
+              Logout
+            </button>
+          </div>
         </div>
 
         {/* ===== Stats ===== */}
@@ -328,11 +356,27 @@ export default function DashboardPage() {
                 <span className="badge badge-primary">Member</span>
                 <span className="badge badge-success">Verified</span>
               </div>
+              <button
+                onClick={() => setIsEditProfileOpen(true)}
+                className="btn-outline btn-sm mt-4 flex items-center gap-1 mx-auto"
+              >
+                <Edit className="w-4 h-4" />
+                Edit Profile
+              </button>
             </div>
           </div>
 
           <div className="card p-6 lg:col-span-2">
-            <h3 className="text-lg font-semibold mb-4">Profile Details</h3>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">Profile Details</h3>
+              <button
+                onClick={() => setIsEditProfileOpen(true)}
+                className="btn-outline btn-sm flex items-center gap-1"
+              >
+                <Edit className="w-4 h-4" />
+                Edit
+              </button>
+            </div>
             <div className="space-y-4">
               {profileDetails.map((detail, index) => {
                 const Icon = detail.icon;
@@ -392,6 +436,13 @@ export default function DashboardPage() {
           onClose={closeEditModal}
           vehicle={selectedVehicle}
           onUpdated={fetchMyCars}
+        />
+
+        <EditProfileModal
+          isOpen={isEditProfileOpen}
+          onClose={() => setIsEditProfileOpen(false)}
+          user={user}
+          onUpdate={handleUpdateUser}
         />
       </div>
     </div>
