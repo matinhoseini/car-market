@@ -58,6 +58,44 @@ class RegisterSerializer(serializers.ModelSerializer):
 
 class ProfileSerializer(serializers.ModelSerializer):
 
+    phone_number = serializers.CharField(
+        source="profile.phone_number",
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+
+    bio = serializers.CharField(
+        source="profile.bio",
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+
+    avatar = serializers.ImageField(
+        source="profile.avatar",
+        required=False,
+        allow_null=True,
+    )
+
     class Meta:
         model = User
-        fields = ['id', 'username', 'email']
+        fields = [
+            'id',
+            'username',
+            'email',
+            'phone_number',
+            'bio',
+            'avatar',
+        ]
+
+    def update(self, instance, validated_data):
+
+        profile_data = validated_data.pop("profile", {})
+
+        for attr, value in profile_data.items():
+            setattr(instance.profile, attr, value)
+
+        instance.profile.save()
+
+        return instance

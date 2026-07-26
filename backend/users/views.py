@@ -2,6 +2,7 @@ from django.core.cache import cache
 
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.response import Response
 
 from drf_spectacular.utils import extend_schema
@@ -31,14 +32,34 @@ def register(request):
 
 
 @extend_schema(
+    request=ProfileSerializer,
     responses=ProfileSerializer
 )
-@api_view(['GET'])
+@api_view(['GET', 'PATCH'])
 @permission_classes([IsAuthenticated])
 def profile(request):
-    serializer = ProfileSerializer(request.user)
 
-    return Response(serializer.data)
+    if request.method == 'GET':
+        serializer = ProfileSerializer(request.user)
+        return Response(serializer.data)
+
+    data = request.data.copy()
+
+    for field in ['username', 'email', 'phone_number', 'bio', 'avatar']:
+        if data.get(field) == '':
+            data.pop(field)
+
+    serializer = ProfileSerializer(
+        request.user,
+        data=data,
+        partial=True,
+    )
+
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data)
+
+    return Response(serializer.errors, status=400)
 
 
 @extend_schema(
