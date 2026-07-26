@@ -19,6 +19,9 @@ import {
 import DarkToggle from "./DarkToggle";
 import { useRouter, usePathname } from "next/navigation";
 
+// ============================================
+// 📦 Header Component with useAuth integration
+// ============================================
 const Header = memo(() => {
   const router = useRouter();
   const pathname = usePathname();
@@ -28,9 +31,12 @@ const Header = memo(() => {
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
   const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
   const userMenuRef = useRef(null);
 
-  // ===== Memoized navigation items =====
+  // ============================================
+  // 📋 Memoized navigation items
+  // ============================================
   const navItems = useMemo(
     () => [
       { href: "/vehicles", label: "Vehicles", icon: CarFront },
@@ -53,8 +59,11 @@ const Header = memo(() => {
     [],
   );
 
-  // ===== Check authentication status =====
+  // ============================================
+  // 🔐 Check authentication status
+  // ============================================
   const checkAuth = useCallback(() => {
+    setLoading(true);
     const token = localStorage.getItem("access_token");
     const userData = localStorage.getItem("user");
     if (token && userData) {
@@ -69,14 +78,19 @@ const Header = memo(() => {
       setIsLoggedIn(false);
       setUser(null);
     }
+    setLoading(false);
   }, []);
 
-  // ===== Check auth on mount and route change =====
+  // ============================================
+  // 🔄 Check auth on mount and route change
+  // ============================================
   useEffect(() => {
     checkAuth();
   }, [pathname, checkAuth]);
 
-  // ===== Listen for storage changes (login/logout from other tabs) =====
+  // ============================================
+  // 📡 Listen for storage changes (sync across tabs)
+  // ============================================
   useEffect(() => {
     const handleStorageChange = () => {
       checkAuth();
@@ -87,7 +101,9 @@ const Header = memo(() => {
     };
   }, [checkAuth]);
 
-  // ===== Control header visibility on scroll =====
+  // ============================================
+  // 🖱️ Control header visibility on scroll
+  // ============================================
   useEffect(() => {
     const controlHeader = () => {
       const currentScrollY = window.scrollY;
@@ -103,7 +119,9 @@ const Header = memo(() => {
     return () => window.removeEventListener("scroll", controlHeader);
   }, [lastScrollY]);
 
-  // ===== Close user menu when clicking outside =====
+  // ============================================
+  // 🔒 Close user menu when clicking outside
+  // ============================================
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
@@ -114,7 +132,9 @@ const Header = memo(() => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // ===== Lock body scroll when mobile menu is open =====
+  // ============================================
+  // 🔒 Lock body scroll when mobile menu is open
+  // ============================================
   useEffect(() => {
     if (isMenuOpen) {
       document.body.style.overflow = "hidden";
@@ -126,7 +146,9 @@ const Header = memo(() => {
     };
   }, [isMenuOpen]);
 
-  // ===== Handle logout =====
+  // ============================================
+  // 🚪 Handle logout
+  // ============================================
   const handleLogout = useCallback(() => {
     localStorage.removeItem("access_token");
     localStorage.removeItem("refresh_token");
@@ -137,7 +159,9 @@ const Header = memo(() => {
     router.push("/");
   }, [router]);
 
-  // ===== Handle dashboard click with token validation =====
+  // ============================================
+  // 🎯 Handle dashboard click with token validation
+  // ============================================
   const handleDashboardClick = useCallback(
     (e) => {
       const token = localStorage.getItem("access_token");
@@ -150,7 +174,9 @@ const Header = memo(() => {
     [router],
   );
 
-  // ===== Toggle menu handlers =====
+  // ============================================
+  // 🔄 Toggle menu handlers
+  // ============================================
   const toggleMenu = useCallback(() => {
     setIsMenuOpen((prev) => !prev);
   }, []);
@@ -159,7 +185,9 @@ const Header = memo(() => {
     setIsUserMenuOpen((prev) => !prev);
   }, []);
 
-  // ===== Check if link is active =====
+  // ============================================
+  // 📍 Check if link is active
+  // ============================================
   const isActive = useCallback(
     (href) => {
       if (href === "/") {
@@ -170,6 +198,26 @@ const Header = memo(() => {
     [pathname],
   );
 
+  // ============================================
+  // ⏳ Loading state
+  // ============================================
+  if (loading) {
+    return (
+      <header className="header py-0 h-14 md:h-16 lg:h-16 fixed top-0 left-0 right-0 z-[9999] bg-[rgb(var(--card))] border-b border-[rgb(var(--border))]">
+        <div className="container-custom h-full flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Car className="text-primary-500 w-5 h-5 animate-pulse" />
+            <span className="text-lg font-bold text-gradient">CarMarket</span>
+          </div>
+          <div className="w-8 h-8 rounded-full bg-[rgb(var(--muted))] animate-pulse"></div>
+        </div>
+      </header>
+    );
+  }
+
+  // ============================================
+  // 🎨 Render
+  // ============================================
   return (
     <>
       <header

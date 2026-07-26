@@ -18,6 +18,7 @@ export const useAuth = () => {
   // 📥 Fetch user from localStorage
   // ============================================
   const fetchUser = useCallback(() => {
+    setLoading(true);
     const userData = getStorage(STORAGE_KEYS.USER);
     if (userData) {
       try {
@@ -66,5 +67,28 @@ export const useAuth = () => {
     fetchUser();
   }, [fetchUser]);
 
-  return { user, loading, logout, refetch, setUser };
+  // ============================================
+  // ✏️ Update user (after profile edit)
+  // ============================================
+  const updateUser = useCallback((newUserData) => {
+    setUser(newUserData);
+    const storedUser = localStorage.getItem(STORAGE_KEYS.USER);
+    if (storedUser) {
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        localStorage.setItem(
+          STORAGE_KEYS.USER,
+          JSON.stringify({ ...parsedUser, ...newUserData }),
+        );
+      } catch {
+        localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(newUserData));
+      }
+    } else {
+      localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(newUserData));
+    }
+    // Notify other tabs
+    window.dispatchEvent(new Event("storage"));
+  }, []);
+
+  return { user, loading, logout, refetch, updateUser, setUser };
 };
