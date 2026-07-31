@@ -1,19 +1,22 @@
 "use client";
 
-import Link from "next/link"; // ✅ اضافه کنید
+import Link from "next/link";
 import { ArrowLeft, Phone, Video, MoreVertical } from "lucide-react";
 
 const ChatHeader = ({ otherUser, carInfo, isOnline }) => {
   return (
     <div className="flex items-center justify-between p-4 border-b border-[rgb(var(--border))] bg-[rgb(var(--card))]">
+      {/* ===== Left side ===== */}
       <div className="flex items-center gap-3">
         <Link
           href="/dashboard/messages"
           className="p-2 hover:bg-[rgb(var(--muted))] rounded-lg transition-colors"
+          aria-label="Back to messages"
         >
           <ArrowLeft className="w-5 h-5" />
         </Link>
 
+        {/* Avatar */}
         <div className="relative">
           <div className="w-10 h-10 rounded-full bg-gradient-to-r from-primary-500 to-accent-500 flex items-center justify-center text-white font-bold">
             {otherUser?.username?.charAt(0).toUpperCase() || "U"}
@@ -23,6 +26,7 @@ const ChatHeader = ({ otherUser, carInfo, isOnline }) => {
           )}
         </div>
 
+        {/* User info */}
         <div>
           <h3 className="font-semibold">
             {otherUser?.username || "Unknown User"}
@@ -37,23 +41,33 @@ const ChatHeader = ({ otherUser, carInfo, isOnline }) => {
         </div>
       </div>
 
+      {/* ===== Right side ===== */}
       <div className="flex items-center gap-1">
         {carInfo && (
           <Link
-            href={`/cars/${carInfo.id}`}
+            href={`/vehicles/${carInfo.id}`}
             className="text-xs text-[rgb(var(--muted-foreground))] hover:text-primary-500 transition-colors px-2"
           >
             🚗 {carInfo.brand} {carInfo.model}
           </Link>
         )}
 
-        <button className="p-2 hover:bg-[rgb(var(--muted))] rounded-lg transition-colors">
+        <button
+          className="p-2 hover:bg-[rgb(var(--muted))] rounded-lg transition-colors"
+          aria-label="Call"
+        >
           <Phone className="w-5 h-5" />
         </button>
-        <button className="p-2 hover:bg-[rgb(var(--muted))] rounded-lg transition-colors">
+        <button
+          className="p-2 hover:bg-[rgb(var(--muted))] rounded-lg transition-colors"
+          aria-label="Video call"
+        >
           <Video className="w-5 h-5" />
         </button>
-        <button className="p-2 hover:bg-[rgb(var(--muted))] rounded-lg transition-colors">
+        <button
+          className="p-2 hover:bg-[rgb(var(--muted))] rounded-lg transition-colors"
+          aria-label="More options"
+        >
           <MoreVertical className="w-5 h-5" />
         </button>
       </div>

@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useMessages, useMarkAsRead } from "../../hooks/useMessages";
-import { useChatWebSocket } from "../../hooks/useChatWebSocket";
+import { useChatWebSocket } from "../../hooks/useWebSocket";
 import MessageBubble from "./MessageBubble";
 import MessageInput from "./MessageInput";
 import ChatHeader from "./ChatHeader";

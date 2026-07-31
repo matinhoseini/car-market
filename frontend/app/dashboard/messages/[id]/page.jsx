@@ -1,15 +1,15 @@
 "use client";
 
-import { useRouter } from "next/router";
+import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
-import { useConversations } from "../../../hooks/useConversations";
-import ChatWindow from "../../../components/chat/ChatWindow";
-import DashboardLayout from "../../../components/dashboard/DashboardLayout";
+import { useConversations } from "../../../../hooks/useConversations";
+import ChatWindow from "../../../../components/chat/ChatWindow";
+import DashboardLayout from "../../../../components/dashboard/DashboardLayout";
 
 const ChatPage = () => {
   const router = useRouter();
-  const { id } = router.query;
-  const conversationId = parseInt(id);
+  const params = useParams(); // ✅ گرفتن پارامترها با useParams
+  const conversationId = parseInt(params.id); // ✅ گرفتن id از params
 
   // ============================================
   // 📋 Get conversation details
