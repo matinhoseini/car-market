@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/router";
+import Link from "next/link";
 import { useConversations } from "../../../hooks/useConversations";
 import ChatWindow from "../../../components/chat/ChatWindow";
 import DashboardLayout from "../../../components/dashboard/DashboardLayout";

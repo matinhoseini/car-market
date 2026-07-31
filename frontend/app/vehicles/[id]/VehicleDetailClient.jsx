@@ -1,4 +1,3 @@
-// app/vehicles/[id]/VehicleDetailClient.jsx
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
@@ -17,9 +16,12 @@ import {
   Mail,
   Share2,
   User,
+  MessageCircle,
+  Check,
 } from "lucide-react";
 import { vehiclesService } from "../../../services/vehicles.service";
 import { authService } from "../../../services/auth.service";
+import { chatService } from "../../../services/chat.service";
 import toast from "react-hot-toast";
 
 // ===== Import from helpers =====
@@ -45,6 +47,10 @@ export default function VehicleDetailClient({ car: initialCar }) {
   const [car, setCar] = useState(initialCar);
   const [activeImage, setActiveImage] = useState(0);
   const [user, setUser] = useState(null);
+  const [isStartingChat, setIsStartingChat] = useState(false);
+  const [hasConversation, setHasConversation] = useState(false);
+  const [conversationId, setConversationId] = useState(null);
+  const [isCheckingChat, setIsCheckingChat] = useState(true);
 
   // ===== Fetch user profile =====
   useEffect(() => {
@@ -63,6 +69,75 @@ export default function VehicleDetailClient({ car: initialCar }) {
 
     fetchUser();
   }, []);
+
+  // ===== Check existing conversation =====
+  useEffect(() => {
+    const checkConversation = async () => {
+      if (!user || !car?.id) {
+        setIsCheckingChat(false);
+        return;
+      }
+
+      // If user is the owner, no need to check chat
+      if (user.id === car.owner_id) {
+        setIsCheckingChat(false);
+        return;
+      }
+
+      try {
+        const conversations = await chatService.getConversations();
+        const existing = conversations.find(
+          (conv) => conv.car_id === parseInt(car.id),
+        );
+        if (existing) {
+          setHasConversation(true);
+          setConversationId(existing.id);
+        }
+      } catch (error) {
+        console.error("Error checking conversations:", error);
+      } finally {
+        setIsCheckingChat(false);
+      }
+    };
+
+    checkConversation();
+  }, [user, car?.id]);
+
+  // ===== Start chat =====
+  const handleStartChat = useCallback(async () => {
+    if (!user) {
+      toast.error("Please login first");
+      router.push("/auth/login");
+      return;
+    }
+
+    if (user.id === car?.owner_id) {
+      toast.error("You cannot chat with yourself!");
+      return;
+    }
+
+    // If conversation exists, go to chat
+    if (hasConversation && conversationId) {
+      router.push(`/dashboard/messages/${conversationId}`);
+      return;
+    }
+
+    setIsStartingChat(true);
+    try {
+      const result = await chatService.startConversation(car.id);
+      if (result?.id) {
+        toast.success("Conversation started!");
+        router.push(`/dashboard/messages/${result.id}`);
+      }
+    } catch (error) {
+      console.error("Error starting chat:", error);
+      toast.error(
+        error?.response?.data?.message || "Failed to start conversation",
+      );
+    } finally {
+      setIsStartingChat(false);
+    }
+  }, [car?.id, car?.owner_id, user, router, hasConversation, conversationId]);
 
   // ===== Memoized values =====
   const ownerName = useMemo(() => {
@@ -102,6 +177,75 @@ export default function VehicleDetailClient({ car: initialCar }) {
           : car[spec.key] || "N/A",
     }));
   }, [car, formattedMileage]);
+
+  // ===== Render chat button =====
+  const renderChatButton = useMemo(() => {
+    // User not logged in
+    if (!user) {
+      return (
+        <Link
+          href="/auth/login"
+          className="btn-primary flex-1 flex items-center justify-center gap-2"
+        >
+          <MessageCircle className="w-4 h-4" />
+          Login to Chat
+        </Link>
+      );
+    }
+
+    // User is the owner
+    if (isOwner) {
+      return (
+        <div className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-[rgb(var(--muted))] text-[rgb(var(--muted-foreground))] rounded-lg border border-[rgb(var(--border))]">
+          <Check className="w-4 h-4 text-green-500" />
+          This is your vehicle
+        </div>
+      );
+    }
+
+    // Checking for existing chat
+    if (isCheckingChat) {
+      return (
+        <button className="btn-primary flex-1 flex items-center justify-center gap-2 opacity-70 cursor-wait">
+          <div className="spinner w-4 h-4"></div>
+          Loading...
+        </button>
+      );
+    }
+
+    // Conversation exists - Continue Chat
+    if (hasConversation && conversationId) {
+      return (
+        <button
+          onClick={handleStartChat}
+          className="btn-primary flex-1 flex items-center justify-center gap-2"
+        >
+          <MessageCircle className="w-4 h-4" />
+          Continue Chat
+        </button>
+      );
+    }
+
+    // Start new chat
+    return (
+      <button
+        onClick={handleStartChat}
+        disabled={isStartingChat}
+        className="btn-primary flex-1 flex items-center justify-center gap-2"
+      >
+        <MessageCircle className="w-4 h-4" />
+        {isStartingChat ? "Starting..." : "Chat with Seller"}
+      </button>
+    );
+  }, [
+    user,
+    isOwner,
+    isCheckingChat,
+    hasConversation,
+    conversationId,
+    isStartingChat,
+    handleStartChat,
+  ]);
 
   // ===== Handlers =====
   const handleBack = useCallback(() => {
@@ -361,9 +505,11 @@ export default function VehicleDetailClient({ car: initialCar }) {
 
             {/* ===== Actions ===== */}
             <div className="flex flex-wrap gap-3 mt-8">
-              <button onClick={handleContact} className="btn-primary flex-1">
+              {renderChatButton}
+
+              <button onClick={handleContact} className="btn-outline flex-1">
                 <Phone className="w-4 h-4 mr-2" />
-                Contact Seller
+                Call
               </button>
               <button onClick={handleShare} className="btn-outline">
                 <Share2 className="w-4 h-4" />

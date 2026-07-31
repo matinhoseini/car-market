@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { messageKeys } from "./useMessages";
+import toast from "react-hot-toast";
 
 export const useChatWebSocket = ({ conversationId, onMessageReceived }) => {
   const [isConnected, setIsConnected] = useState(false);
@@ -11,45 +12,57 @@ export const useChatWebSocket = ({ conversationId, onMessageReceived }) => {
   const queryClient = useQueryClient();
 
   // ============================================
-  // 🔗 Connect to WebSocket
+  // Connect to WebSocket
   // ============================================
   const connect = useCallback(() => {
+    // Prevent multiple connections
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
     if (isConnecting) return;
 
     setIsConnecting(true);
 
+    // Get token from localStorage
     const token = localStorage.getItem("access_token");
+
+    // Redirect to login if no token
+    if (!token) {
+      console.error("No access token found, redirecting to login...");
+      window.location.href = "/auth/login";
+      return;
+    }
+
     const wsUrl = `${process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000"}/ws/chat/${conversationId}/?token=${token}`;
 
+    console.log("Connecting to WebSocket:", wsUrl);
     wsRef.current = new WebSocket(wsUrl);
 
     wsRef.current.onopen = () => {
+      console.log("WebSocket connected!");
       setIsConnected(true);
       setIsConnecting(false);
       reconnectAttempts.current = 0;
-      console.log("🔗 Connected to chat WebSocket");
     };
 
     wsRef.current.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
+        console.log("Message received:", data);
 
-        // ===== Handle different message types =====
         if (data.type === "message") {
-          const newMessage = data.payload;
+          const newMessage = data.payload || data.message;
 
-          // Update messages cache
+          // Update React Query cache
           queryClient.setQueryData(
             messageKeys.list(conversationId),
             (oldData) => {
               if (!oldData) return oldData;
-              // Add new message to first page
               const newPages = [...oldData.pages];
-              newPages[0] = {
-                ...newPages[0],
-                results: [newMessage, ...newPages[0].results],
-              };
+              if (newPages[0]) {
+                newPages[0] = {
+                  ...newPages[0],
+                  results: [newMessage, ...newPages[0].results],
+                };
+              }
               return {
                 ...oldData,
                 pages: newPages,
@@ -57,24 +70,9 @@ export const useChatWebSocket = ({ conversationId, onMessageReceived }) => {
             },
           );
 
-          // Call callback
           if (onMessageReceived) {
             onMessageReceived(newMessage);
           }
-        }
-
-        // ===== Handle typing indicator =====
-        if (data.type === "typing") {
-          // You can implement typing indicator here
-          console.log("👤 User is typing...");
-        }
-
-        // ===== Handle read receipt =====
-        if (data.type === "read_receipt") {
-          // Update messages as read
-          queryClient.invalidateQueries({
-            queryKey: messageKeys.list(conversationId),
-          });
         }
       } catch (error) {
         console.error("Error parsing WebSocket message:", error);
@@ -82,11 +80,11 @@ export const useChatWebSocket = ({ conversationId, onMessageReceived }) => {
     };
 
     wsRef.current.onclose = (event) => {
+      console.log(`WebSocket closed (code: ${event.code})`);
       setIsConnected(false);
       setIsConnecting(false);
-      console.log(`🔌 Disconnected from chat (code: ${event.code})`);
 
-      // ===== Reconnect with exponential backoff =====
+      // Auto-reconnect with exponential backoff
       if (reconnectAttempts.current < 10 && event.code !== 1000) {
         const delay = Math.min(
           1000 * Math.pow(1.5, reconnectAttempts.current),
@@ -94,9 +92,7 @@ export const useChatWebSocket = ({ conversationId, onMessageReceived }) => {
         );
         reconnectTimeoutRef.current = setTimeout(() => {
           reconnectAttempts.current++;
-          console.log(
-            `🔄 Reconnecting... Attempt ${reconnectAttempts.current}`,
-          );
+          console.log(`Reconnecting... Attempt ${reconnectAttempts.current}`);
           connect();
         }, delay);
       }
@@ -109,29 +105,38 @@ export const useChatWebSocket = ({ conversationId, onMessageReceived }) => {
   }, [conversationId, onMessageReceived, queryClient, isConnecting]);
 
   // ============================================
-  // 📤 Send message
+  // Send message
   // ============================================
   const sendMessage = useCallback((text) => {
-    if (!text?.trim()) return false;
-
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(
-        JSON.stringify({
-          type: "message",
-          payload: {
-            text: text.trim(),
-          },
-        }),
-      );
-      return true;
+    if (!text?.trim()) {
+      toast.error("Please write a message");
+      return false;
     }
 
-    console.warn("⚠️ WebSocket is not connected");
-    return false;
+    if (wsRef.current?.readyState !== WebSocket.OPEN) {
+      toast.error("You are offline. Please wait for reconnection.");
+      return false;
+    }
+
+    try {
+      const messageData = {
+        type: "message",
+        payload: {
+          text: text.trim(),
+        },
+      };
+      wsRef.current.send(JSON.stringify(messageData));
+      console.log("Message sent:", text);
+      return true;
+    } catch (error) {
+      console.error("Error sending message:", error);
+      toast.error("Failed to send message");
+      return false;
+    }
   }, []);
 
   // ============================================
-  // ⌨️ Send typing indicator
+  // Send typing indicator
   // ============================================
   const sendTyping = useCallback((isTyping) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -145,7 +150,7 @@ export const useChatWebSocket = ({ conversationId, onMessageReceived }) => {
   }, []);
 
   // ============================================
-  // 🔌 Disconnect
+  // Disconnect
   // ============================================
   const disconnect = useCallback(() => {
     if (wsRef.current) {
@@ -161,7 +166,7 @@ export const useChatWebSocket = ({ conversationId, onMessageReceived }) => {
   }, []);
 
   // ============================================
-  // 🔄 Lifecycle
+  // Lifecycle
   // ============================================
   useEffect(() => {
     if (conversationId) {
