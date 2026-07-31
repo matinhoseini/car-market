@@ -26,7 +26,9 @@ const useAuthStore = create(
           token,
           isAuthenticated: true,
         });
-        localStorage.setItem("access_token", token);
+        if (typeof window !== "undefined") {
+          localStorage.setItem("access_token", token);
+        }
       },
 
       logout: () => {
@@ -35,8 +37,10 @@ const useAuthStore = create(
           token: null,
           isAuthenticated: false,
         });
-        localStorage.removeItem("access_token");
-        localStorage.removeItem("refresh_token");
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("access_token");
+          localStorage.removeItem("refresh_token");
+        }
       },
 
       updateUser: (userData) => {
@@ -47,10 +51,16 @@ const useAuthStore = create(
     }),
     {
       name: "auth-storage",
-      getStorage: () => localStorage,
+      getStorage: () => {
+        if (typeof window !== "undefined") {
+          return localStorage;
+        }
+        return undefined;
+      },
     },
   ),
 );
 
-// ✅ export default
 export default useAuthStore;
+
+export { useAuthStore };
