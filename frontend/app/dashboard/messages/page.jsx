@@ -1,71 +1,71 @@
-// app/dashboard/messages/page.jsx
 "use client";
 
 import { useConversations } from "../../../hooks/useConversations";
 import ChatList from "../../../components/chat/ChatList";
+import DashboardLayout from "../../../components/dashboard/DashboardLayout";
 
-export default function MessagesPage() {
+const MessagesPage = () => {
   const { data: conversations, isLoading, error } = useConversations();
 
+  // ============================================
+  // 🎨 Render
+  // ============================================
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="text-center">
-          <div className="spinner w-12 h-12 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 text-[rgb(var(--muted-foreground))]">
-            Loading conversations...
-          </p>
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-[calc(100vh-200px)]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500 mx-auto"></div>
+            <p className="mt-2 text-[rgb(var(--muted-foreground))]">
+              Loading conversations...
+            </p>
+          </div>
         </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
   if (error) {
     return (
-      <div className="text-center py-12">
-        <p className="text-red-500">Failed to load conversations</p>
-        <button
-          onClick={() => window.location.reload()}
-          className="btn-primary mt-4"
-        >
-          Try Again
-        </button>
-      </div>
+      <DashboardLayout>
+        <div className="text-center py-10 text-red-500">
+          ❌ Error loading conversations
+        </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="min-h-[calc(100vh-80px)] bg-[rgb(var(--background))] py-8">
-      <div className="container-custom max-w-4xl">
+    <DashboardLayout>
+      <div className="max-w-4xl mx-auto">
         {/* ===== Header ===== */}
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h1 className="text-2xl font-bold font-heading">💬 Messages</h1>
-            <p className="text-sm text-[rgb(var(--muted-foreground))] mt-1">
-              Your conversations with sellers and buyers
-            </p>
-          </div>
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-bold">📩 Messages</h1>
           <span className="text-sm text-[rgb(var(--muted-foreground))]">
             {conversations?.length || 0} conversations
           </span>
         </div>
 
         {/* ===== Chat List ===== */}
-        {conversations && conversations.length > 0 ? (
-          <ChatList conversations={conversations} />
-        ) : (
+        {conversations?.length === 0 ? (
           <div className="text-center py-16 bg-[rgb(var(--card))] rounded-xl border border-[rgb(var(--border))]">
-            <div className="text-6xl mb-4">💬</div>
-            <h3 className="text-xl font-semibold mb-2">No messages yet</h3>
+            <p className="text-4xl mb-4">💬</p>
             <p className="text-[rgb(var(--muted-foreground))]">
-              Start a conversation by contacting a seller
+              No conversations yet
             </p>
-            <a href="/vehicles" className="btn-primary inline-block mt-4">
-              Browse Vehicles
-            </a>
+            <Link
+              href="/cars"
+              className="text-primary-500 hover:underline mt-2 inline-block"
+            >
+              Browse cars and start chatting
+            </Link>
           </div>
+        ) : (
+          <ChatList conversations={conversations} />
         )}
       </div>
-    </div>
+    </DashboardLayout>
   );
-}
+};
+
+export default MessagesPage;
