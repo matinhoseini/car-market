@@ -1,12 +1,11 @@
 "use client";
 
-import Link from "next/link";
+import Link from "next/link"; // ✅ اضافه کنید
 import { ArrowLeft, Phone, Video, MoreVertical } from "lucide-react";
 
 const ChatHeader = ({ otherUser, carInfo, isOnline }) => {
   return (
     <div className="flex items-center justify-between p-4 border-b border-[rgb(var(--border))] bg-[rgb(var(--card))]">
-      {/* ===== Left side ===== */}
       <div className="flex items-center gap-3">
         <Link
           href="/dashboard/messages"
@@ -15,7 +14,6 @@ const ChatHeader = ({ otherUser, carInfo, isOnline }) => {
           <ArrowLeft className="w-5 h-5" />
         </Link>
 
-        {/* Avatar */}
         <div className="relative">
           <div className="w-10 h-10 rounded-full bg-gradient-to-r from-primary-500 to-accent-500 flex items-center justify-center text-white font-bold">
             {otherUser?.username?.charAt(0).toUpperCase() || "U"}
@@ -25,7 +23,6 @@ const ChatHeader = ({ otherUser, carInfo, isOnline }) => {
           )}
         </div>
 
-        {/* User info */}
         <div>
           <h3 className="font-semibold">
             {otherUser?.username || "Unknown User"}
@@ -40,7 +37,6 @@ const ChatHeader = ({ otherUser, carInfo, isOnline }) => {
         </div>
       </div>
 
-      {/* ===== Right side ===== */}
       <div className="flex items-center gap-1">
         {carInfo && (
           <Link

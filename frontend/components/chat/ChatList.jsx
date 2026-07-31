@@ -1,7 +1,6 @@
-// components/chat/ChatList.jsx
 "use client";
 
-import Link from "next/link";
+import Link from "next/link"; // ✅ اضافه کنید
 import { formatDistanceToNow } from "date-fns";
 import { faIR } from "date-fns/locale";
 
@@ -15,14 +14,12 @@ const ChatList = ({ conversations }) => {
           className="block border-b border-[rgb(var(--border))] last:border-0 hover:bg-[rgb(var(--muted))] transition-colors"
         >
           <div className="flex items-center gap-4 p-4">
-            {/* ===== Avatar ===== */}
             <div className="w-12 h-12 rounded-full bg-gradient-to-r from-primary-500 to-accent-500 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
               {conv.seller_username?.charAt(0).toUpperCase() ||
                 conv.buyer_username?.charAt(0).toUpperCase() ||
                 "U"}
             </div>
 
-            {/* ===== Info ===== */}
             <div className="flex-1 min-w-0">
               <div className="flex justify-between items-start">
                 <h3 className="font-semibold truncate">

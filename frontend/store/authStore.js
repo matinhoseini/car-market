@@ -4,15 +4,16 @@ import { persist } from "zustand/middleware";
 // ============================================
 // 📦 Auth Store with Zustand
 // ============================================
-export const useAuthStore = create(
-  // ✅ export const
+const useAuthStore = create(
   persist(
     (set, get) => ({
+      // ===== State =====
       user: null,
       token: null,
       isAuthenticated: false,
       isLoading: false,
 
+      // ===== Actions =====
       setUser: (user) => set({ user, isAuthenticated: !!user }),
 
       setToken: (token) => set({ token }),
@@ -50,3 +51,6 @@ export const useAuthStore = create(
     },
   ),
 );
+
+// ✅ export default
+export default useAuthStore;

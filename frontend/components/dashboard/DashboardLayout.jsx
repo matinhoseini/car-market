@@ -8,9 +8,6 @@ const DashboardLayout = ({ children }) => {
   return (
     <div className="flex h-screen bg-[rgb(var(--background))]">
       {/* Sidebar */}
-      <div className="w-64 border-r border-[rgb(var(--border))] bg-[rgb(var(--card))]">
-        <Sidebar />
-      </div>
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">

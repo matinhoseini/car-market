@@ -1,4 +1,3 @@
-// app/dashboard/page.jsx
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
@@ -16,9 +15,12 @@ import {
   PlusCircle,
   RefreshCw,
   Edit,
+  MessageCircle,
+  Bell,
 } from "lucide-react";
 import { authService } from "../../services/auth.service";
 import { vehiclesService } from "../../services/vehicles.service";
+import { chatService } from "../../services/chat.service";
 import toast from "react-hot-toast";
 import VehicleActionsModal from "../../components/dashboard/VehicleActionsModal";
 import EditVehicleModal from "../../components/dashboard/EditVehicleModal";
@@ -39,6 +41,11 @@ export default function DashboardPage() {
   const [favoritesLoading, setFavoritesLoading] = useState(true);
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
 
+  // ===== Chat states =====
+  const [conversations, setConversations] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [conversationsLoading, setConversationsLoading] = useState(true);
+
   // ===== Modal states =====
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [isActionsModalOpen, setIsActionsModalOpen] = useState(false);
@@ -51,8 +58,9 @@ export default function DashboardPage() {
       vehicles: myCars.length,
       favorites: favorites.length,
       orders: 0,
+      messages: unreadCount,
     }),
-    [myCars.length, favorites.length],
+    [myCars.length, favorites.length, unreadCount],
   );
 
   // ===== Check auth and get user =====
@@ -108,13 +116,35 @@ export default function DashboardPage() {
     }
   }, []);
 
+  // ===== Fetch conversations =====
+  const fetchConversations = useCallback(async () => {
+    setConversationsLoading(true);
+    try {
+      const data = await chatService.getConversations();
+      setConversations(data || []);
+
+      // محاسبه تعداد پیام‌های خوانده نشده
+      const totalUnread = (data || []).reduce(
+        (sum, conv) => sum + (conv.unread_count || 0),
+        0,
+      );
+      setUnreadCount(totalUnread);
+    } catch (error) {
+      console.error("Error fetching conversations:", error);
+      setConversations([]);
+    } finally {
+      setConversationsLoading(false);
+    }
+  }, []);
+
   // ===== Initial fetch =====
   useEffect(() => {
     if (user) {
       fetchMyCars();
       fetchFavorites();
+      fetchConversations();
     }
-  }, [user, fetchMyCars, fetchFavorites]);
+  }, [user, fetchMyCars, fetchFavorites, fetchConversations]);
 
   // ===== Handlers =====
   const handleLogout = useCallback(() => {
@@ -173,8 +203,9 @@ export default function DashboardPage() {
   const refreshData = useCallback(() => {
     fetchMyCars();
     fetchFavorites();
+    fetchConversations();
     toast.success("Refreshed!");
-  }, [fetchMyCars, fetchFavorites]);
+  }, [fetchMyCars, fetchFavorites, fetchConversations]);
 
   // ===== Memoized stats cards =====
   const statsCards = useMemo(
@@ -198,16 +229,26 @@ export default function DashboardPage() {
         borderColor: "hover:border-red-500",
       },
       {
-        href: "/dashboard/orders",
-        icon: ShoppingBag,
+        href: "/dashboard/messages",
+        icon: MessageCircle,
         iconColor: "text-green-500",
         bgColor: "bg-green-500/10",
+        label: "Messages",
+        value: stats.messages,
+        borderColor: "hover:border-green-500",
+        badge: unreadCount > 0 ? unreadCount : null,
+      },
+      {
+        href: "/dashboard/orders",
+        icon: ShoppingBag,
+        iconColor: "text-purple-500",
+        bgColor: "bg-purple-500/10",
         label: "Orders",
         value: stats.orders,
-        borderColor: "hover:border-green-500",
+        borderColor: "hover:border-purple-500",
       },
     ],
-    [stats],
+    [stats, unreadCount],
   );
 
   // ===== Memoized profile details =====
@@ -223,6 +264,11 @@ export default function DashboardPage() {
       },
     ];
   }, [user]);
+
+  // ===== Recent conversations preview =====
+  const recentConversations = useMemo(() => {
+    return conversations.slice(0, 3);
+  }, [conversations]);
 
   // ===== Loading state =====
   if (loading) {
@@ -249,36 +295,57 @@ export default function DashboardPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            {/* ===== Messages Bell ===== */}
+            <Link href="/dashboard/messages" className="relative">
+              <button
+                className="btn-outline btn-sm flex items-center gap-1 relative"
+                aria-label="Messages"
+              >
+                <Bell className="w-4 h-4" />
+                <span className="hidden sm:inline">Messages</span>
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </span>
+                )}
+              </button>
+            </Link>
+
             <button
               onClick={refreshData}
               className="btn-outline btn-sm flex items-center gap-1"
               aria-label="Refresh data"
             >
               <RefreshCw className="w-4 h-4" />
-              Refresh
+              <span className="hidden sm:inline">Refresh</span>
             </button>
             <button
               onClick={handleLogout}
               className="btn-danger btn-sm flex items-center gap-2"
             >
               <LogOut className="w-4 h-4" />
-              Logout
+              <span className="hidden sm:inline">Logout</span>
             </button>
           </div>
         </div>
 
         {/* ===== Stats ===== */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {statsCards.map((stat, index) => {
             const Icon = stat.icon;
             return (
-              <Link key={index} href={stat.href} className="block">
+              <Link key={index} href={stat.href} className="block relative">
                 <div
                   className={`card card-hover p-6 cursor-pointer transition-all ${stat.borderColor}`}
                 >
                   <div className="flex items-center gap-4">
-                    <div className={`p-3 ${stat.bgColor} rounded-xl`}>
+                    <div className={`p-3 ${stat.bgColor} rounded-xl relative`}>
                       <Icon className={`w-6 h-6 ${stat.iconColor}`} />
+                      {stat.badge && (
+                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                          {stat.badge}
+                        </span>
+                      )}
                     </div>
                     <div>
                       <p className="text-sm text-[rgb(var(--muted-foreground))]">
@@ -292,6 +359,75 @@ export default function DashboardPage() {
             );
           })}
         </div>
+
+        {/* ===== Recent Messages Preview ===== */}
+        {recentConversations.length > 0 && (
+          <div className="mb-8">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold font-heading flex items-center gap-2">
+                <MessageCircle className="w-5 h-5 text-primary-500" />
+                Recent Messages
+                {unreadCount > 0 && (
+                  <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+                    {unreadCount} new
+                  </span>
+                )}
+              </h2>
+              <Link
+                href="/dashboard/messages"
+                className="text-sm text-primary-500 hover:underline"
+              >
+                View All →
+              </Link>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3">
+              {recentConversations.map((conv) => (
+                <Link
+                  key={conv.id}
+                  href={`/dashboard/messages/${conv.id}`}
+                  className="block"
+                >
+                  <div className="card p-4 hover:shadow-md transition-shadow cursor-pointer">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-r from-primary-500 to-accent-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                          {(conv.seller_username || conv.buyer_username || "U")
+                            .charAt(0)
+                            .toUpperCase()}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold truncate">
+                              {conv.seller_username ||
+                                conv.buyer_username ||
+                                "Unknown"}
+                            </span>
+                            {conv.unread_count > 0 && (
+                              <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full flex-shrink-0">
+                                {conv.unread_count}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-[rgb(var(--muted-foreground))] truncate">
+                            {conv.last_message || "No messages yet"}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-xs text-[rgb(var(--muted-foreground))] flex-shrink-0 mr-2">
+                        {conv.car_brand && conv.car_model && (
+                          <span className="block text-right">
+                            🚗 {conv.car_brand} {conv.car_model}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* ===== My Vehicles Section ===== */}
         <div className="mb-8">
@@ -396,11 +532,22 @@ export default function DashboardPage() {
         </div>
 
         {/* ===== Quick Actions ===== */}
-        <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="mt-8 grid grid-cols-1 sm:grid-cols-4 gap-4">
           <Link href="/dashboard/add-vehicle">
             <button className="btn-primary w-full">
               <PlusCircle className="w-4 h-4 mr-2" />
               Add Vehicle
+            </button>
+          </Link>
+          <Link href="/dashboard/messages">
+            <button className="btn-outline w-full relative">
+              <MessageCircle className="w-4 h-4 mr-2" />
+              Messages
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                  {unreadCount}
+                </span>
+              )}
             </button>
           </Link>
           <Link href="/dashboard/profile">

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/router";
+import { useRouter } from "next/navigation"; // ✅ برای App Router
 import { useStartConversation } from "../../hooks/useConversations";
 import { MessageCircle } from "lucide-react";
 
@@ -17,13 +17,11 @@ const StartChatButton = ({ carId, sellerId, sellerUsername }) => {
     try {
       const result = await startConversation.mutateAsync(carId);
 
-      // Redirect to chat page
       if (result?.id) {
         router.push(`/dashboard/messages/${result.id}`);
       }
     } catch (error) {
       console.error("Error starting conversation:", error);
-      // Show error toast here
     } finally {
       setIsLoading(false);
     }

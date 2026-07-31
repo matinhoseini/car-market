@@ -1,8 +1,10 @@
 "use client";
 
-import useAuthStore from "../../store/authStore"; // ✅ import default
+// ✅ import صحیح برای default export
+import useAuthStore from "../../store/authStore";
 
 const Header = () => {
+  // ✅ استفاده از useAuthStore
   const { user } = useAuthStore();
 
   return (

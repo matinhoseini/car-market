@@ -1,7 +1,7 @@
 "use client";
 
+import Link from "next/link"; // ✅ این خط را اضافه کنید
 import { usePathname } from "next/navigation";
-import Link from "next/link";
 import {
   Home,
   MessageCircle,
@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 
 const Sidebar = () => {
-  const pathname = usePathname(); // ✅ جایگزین useRouter
+  const pathname = usePathname();
 
   const menuItems = [
     { href: "/dashboard", label: "Dashboard", icon: Home },
@@ -32,7 +32,7 @@ const Sidebar = () => {
 
       <nav className="flex-1 space-y-1">
         {menuItems.map((item) => {
-          const isActive = pathname === item.href; // ✅ مقایسه با pathname
+          const isActive = pathname === item.href;
           const Icon = item.icon;
 
           return (
