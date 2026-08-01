@@ -9,23 +9,28 @@ export const useChatWebSocket = ({ conversationId, onMessageReceived }) => {
   const wsRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
   const reconnectAttempts = useRef(0);
-  const maxReconnectAttempts = 5;
+  const maxReconnectAttempts = 3;
+  const hasShownErrorRef = useRef(false); // ✅ Track if error already shown
   const queryClient = useQueryClient();
 
   const connect = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
-      console.log("ℹ️ WebSocket already connected");
+      console.log("WebSocket already connected");
       return;
     }
 
     if (isConnecting) {
-      console.log("ℹ️ WebSocket is already connecting");
+      console.log("WebSocket is already connecting");
       return;
     }
 
     if (reconnectAttempts.current >= maxReconnectAttempts) {
-      console.error("❌ Max reconnection attempts reached");
-      toast.error("Connection failed. Please refresh the page.");
+      console.error("Max reconnection attempts reached");
+      // ✅ Show error only once
+      if (!hasShownErrorRef.current) {
+        toast.error("Connection failed. Please refresh the page.");
+        hasShownErrorRef.current = true;
+      }
       return;
     }
 
@@ -34,30 +39,34 @@ export const useChatWebSocket = ({ conversationId, onMessageReceived }) => {
     const token = localStorage.getItem("access_token");
 
     if (!token) {
-      console.error("❌ No access token found");
+      console.error("No access token found");
       setIsConnecting(false);
-      toast.error("Please login again");
+      if (!hasShownErrorRef.current) {
+        toast.error("Please login again");
+        hasShownErrorRef.current = true;
+      }
       return;
     }
 
     const wsUrl = `${process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000"}/ws/chat/${conversationId}/?token=${token}`;
 
     console.log(
-      `🔄 Connecting (${reconnectAttempts.current + 1}/${maxReconnectAttempts})`,
+      `Connecting (${reconnectAttempts.current + 1}/${maxReconnectAttempts})`,
     );
     wsRef.current = new WebSocket(wsUrl);
 
     wsRef.current.onopen = () => {
-      console.log("✅ WebSocket connected!");
+      console.log("WebSocket connected!");
       setIsConnected(true);
       setIsConnecting(false);
       reconnectAttempts.current = 0;
+      hasShownErrorRef.current = false; // ✅ Reset error flag on successful connection
     };
 
     wsRef.current.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        console.log("📩 Message received:", data);
+        console.log("Message received:", data);
 
         if (data.type === "message" || data.type === "chat_message") {
           const newMessage = data.payload || data.message;
@@ -85,67 +94,81 @@ export const useChatWebSocket = ({ conversationId, onMessageReceived }) => {
         }
 
         if (data.type === "connection") {
-          console.log("🔗 Connection confirmed:", data);
+          console.log("Connection confirmed:", data);
         }
 
         if (data.type === "error") {
-          console.error("❌ Server error:", data.message);
-          toast.error(data.message);
+          console.error("Server error:", data.message);
+          // ✅ Show server error only once
+          if (!hasShownErrorRef.current) {
+            toast.error(data.message);
+            hasShownErrorRef.current = true;
+          }
         }
       } catch (error) {
-        console.error("❌ Error parsing WebSocket message:", error);
+        console.error("Error parsing WebSocket message:", error);
       }
     };
 
     wsRef.current.onclose = (event) => {
-      console.log(`🔌 WebSocket closed (code: ${event.code})`);
+      console.log(`WebSocket closed (code: ${event.code})`);
       setIsConnected(false);
       setIsConnecting(false);
 
       if (event.code === 1000) {
-        console.log("✅ Normal closure, no reconnect needed");
+        console.log("Normal closure");
+        hasShownErrorRef.current = false;
         return;
       }
 
       if (reconnectAttempts.current < maxReconnectAttempts) {
         const delay = Math.min(
           1000 * Math.pow(1.5, reconnectAttempts.current),
-          10000,
+          5000,
         );
         reconnectAttempts.current++;
         reconnectTimeoutRef.current = setTimeout(() => {
-          console.log(
-            `🔄 Reconnecting... Attempt ${reconnectAttempts.current}`,
-          );
+          console.log(`Reconnecting... Attempt ${reconnectAttempts.current}`);
           connect();
         }, delay);
       } else {
-        console.error("❌ Max reconnection attempts reached");
-        toast.error("Unable to connect. Please refresh the page.");
+        console.error("Max reconnection attempts reached");
+        // ✅ Show error only once
+        if (!hasShownErrorRef.current) {
+          toast.error("Unable to connect. Please refresh the page.");
+          hasShownErrorRef.current = true;
+        }
       }
     };
 
     wsRef.current.onerror = (error) => {
-      console.error("❌ WebSocket error:", error);
+      console.error("WebSocket error:", error);
       setIsConnecting(false);
+      // ✅ Show error only once
+      if (!hasShownErrorRef.current) {
+        toast.error("Connection error. Please refresh the page.");
+        hasShownErrorRef.current = true;
+      }
     };
   }, [conversationId, onMessageReceived, queryClient, isConnecting]);
 
   // ============================================
-  // 📤 Send message
+  // Send message
   // ============================================
   const sendMessage = useCallback((text) => {
-    console.log("📤 sendMessage called with:", text);
+    console.log("sendMessage called with:", text);
 
     if (!text?.trim()) {
       toast.error("Please write a message");
       return false;
     }
 
-    console.log("📤 WebSocket state:", wsRef.current?.readyState);
-
     if (wsRef.current?.readyState !== WebSocket.OPEN) {
-      toast.error("You are offline. Please wait for reconnection.");
+      // ✅ Show offline message only once
+      if (!hasShownErrorRef.current) {
+        toast.error("You are offline. Please wait for reconnection.");
+        hasShownErrorRef.current = true;
+      }
       return false;
     }
 
@@ -155,17 +178,20 @@ export const useChatWebSocket = ({ conversationId, onMessageReceived }) => {
         message: text.trim(),
       };
       wsRef.current.send(JSON.stringify(messageData));
-      console.log("✅ Message sent successfully!");
+      console.log("Message sent successfully!");
       return true;
     } catch (error) {
-      console.error("❌ Error sending message:", error);
-      toast.error("Failed to send message");
+      console.error("Error sending message:", error);
+      if (!hasShownErrorRef.current) {
+        toast.error("Failed to send message");
+        hasShownErrorRef.current = true;
+      }
       return false;
     }
   }, []);
 
   // ============================================
-  // ⌨️ Send typing indicator
+  // Send typing indicator
   // ============================================
   const sendTyping = useCallback((isTyping) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -179,7 +205,7 @@ export const useChatWebSocket = ({ conversationId, onMessageReceived }) => {
   }, []);
 
   // ============================================
-  // 🔌 Disconnect
+  // Disconnect
   // ============================================
   const disconnect = useCallback(() => {
     if (wsRef.current) {
@@ -195,10 +221,11 @@ export const useChatWebSocket = ({ conversationId, onMessageReceived }) => {
     setIsConnected(false);
     setIsConnecting(false);
     reconnectAttempts.current = 0;
+    hasShownErrorRef.current = false;
   }, []);
 
   // ============================================
-  // 🔄 Lifecycle
+  // Lifecycle
   // ============================================
   useEffect(() => {
     if (conversationId) {
@@ -208,7 +235,7 @@ export const useChatWebSocket = ({ conversationId, onMessageReceived }) => {
     return () => {
       disconnect();
     };
-  }, [conversationId, connect, disconnect]);
+  }, [conversationId]);
 
   return {
     isConnected,
