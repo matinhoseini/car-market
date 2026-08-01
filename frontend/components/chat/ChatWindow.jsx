@@ -2,10 +2,11 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useMessages, useMarkAsRead } from "../../hooks/useMessages";
-import { useChatWebSocket } from "../../hooks/useWebSocket";
+import { useChatWebSocket } from "../../hooks/useChatWebSocket";
 import MessageBubble from "./MessageBubble";
 import MessageInput from "./MessageInput";
 import ChatHeader from "./ChatHeader";
+import DateHeader from "./DateHeader";
 
 const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
   const [messages, setMessages] = useState([]);
@@ -48,6 +49,34 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
   }, [data]);
 
   // ============================================
+  // 📅 Group messages by date (like WhatsApp)
+  // ============================================
+  const getDateKey = (dateString) => {
+    const date = new Date(dateString);
+    return new Date(
+      date.getFullYear(),
+      date.getMonth(),
+      date.getDate(),
+    ).toISOString();
+  };
+
+  const groupedMessages = useCallback(() => {
+    const groups = {};
+
+    messages.forEach((message) => {
+      const dateKey = getDateKey(message.created_at);
+      if (!groups[dateKey]) {
+        groups[dateKey] = [];
+      }
+      groups[dateKey].push(message);
+    });
+
+    return Object.entries(groups).sort((a, b) => {
+      return new Date(a[0]) - new Date(b[0]);
+    });
+  }, [messages]);
+
+  // ============================================
   // 📜 Scroll to bottom
   // ============================================
   const scrollToBottom = useCallback(() => {
@@ -66,7 +95,6 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
         target.scrollHeight - target.scrollTop <= target.clientHeight + 50;
       setIsAtBottom(isBottom);
 
-      // Load more messages when scrolling up
       if (target.scrollTop === 0 && hasNextPage && !isFetchingNextPage) {
         fetchNextPage();
       }
@@ -109,7 +137,6 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
     (text) => {
       const success = sendMessage(text);
       if (success) {
-        // Optimistic update
         const tempMessage = {
           id: Date.now(),
           text: text,
@@ -140,6 +167,8 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
     );
   }
 
+  const groupedMessagesList = groupedMessages();
+
   return (
     <div className="flex flex-col h-full bg-[rgb(var(--background))]">
       {/* ===== Header ===== */}
@@ -162,16 +191,39 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
           </div>
         )}
 
-        {/* Messages */}
-        {messages.length === 0 ? (
+        {/* ===== Grouped Messages ===== */}
+        {groupedMessagesList.length === 0 ? (
           <div className="text-center py-16 text-[rgb(var(--muted-foreground))]">
             <p className="text-4xl mb-2">💬</p>
             <p>No messages yet</p>
             <p className="text-sm">Start the conversation!</p>
           </div>
         ) : (
-          messages.map((message) => (
-            <MessageBubble key={message.id} message={message} />
+          groupedMessagesList.map(([dateKey, groupMessages]) => (
+            <div key={dateKey}>
+              {/* ===== Date Header ===== */}
+              <DateHeader date={dateKey} />
+
+              {/* ===== Messages for this date ===== */}
+              {groupMessages.map((message, index) => {
+                // Show time only for first message or if previous message has different time
+                const prevMessage = index > 0 ? groupMessages[index - 1] : null;
+                const showTime =
+                  !prevMessage ||
+                  new Date(message.created_at).getHours() !==
+                    new Date(prevMessage.created_at).getHours() ||
+                  new Date(message.created_at).getMinutes() !==
+                    new Date(prevMessage.created_at).getMinutes();
+
+                return (
+                  <MessageBubble
+                    key={message.id}
+                    message={message}
+                    showTime={showTime}
+                  />
+                );
+              })}
+            </div>
           ))
         )}
 
