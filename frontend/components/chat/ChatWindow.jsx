@@ -26,6 +26,7 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
   const { isConnected, sendMessage, sendTyping } = useChatWebSocket({
     conversationId,
     onMessageReceived: (newMessage) => {
+      console.log("📩 New message received:", newMessage);
       setMessages((prev) => [newMessage, ...prev]);
       if (isAtBottom) {
         scrollToBottom();
@@ -121,6 +122,16 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
   }, [isLoading, messages.length, scrollToBottom]);
 
   // ============================================
+  // 📊 Debug connection status
+  // ============================================
+  useEffect(() => {
+    console.log("🔗 Connection status:", {
+      isConnected,
+      conversationId,
+    });
+  }, [isConnected, conversationId]);
+
+  // ============================================
   // ⌨️ Handle typing indicator
   // ============================================
   const handleTyping = useCallback(
@@ -135,7 +146,17 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
   // ============================================
   const handleSend = useCallback(
     (text) => {
+      console.log("📤 handleSend called with text:", text);
+
+      if (!text?.trim()) {
+        console.log("❌ Empty text, ignoring");
+        return;
+      }
+
+      console.log("📤 Calling sendMessage...");
       const success = sendMessage(text);
+      console.log("📤 sendMessage result:", success);
+
       if (success) {
         const tempMessage = {
           id: Date.now(),
@@ -144,6 +165,7 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
           created_at: new Date().toISOString(),
           is_read: false,
         };
+        console.log("📤 Adding temp message:", tempMessage);
         setMessages((prev) => [tempMessage, ...prev]);
         scrollToBottom();
       }
@@ -206,7 +228,6 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
 
               {/* ===== Messages for this date ===== */}
               {groupMessages.map((message, index) => {
-                // Show time only for first message or if previous message has different time
                 const prevMessage = index > 0 ? groupMessages[index - 1] : null;
                 const showTime =
                   !prevMessage ||
