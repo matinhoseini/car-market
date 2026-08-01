@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useMessages, useMarkAsRead } from "../../hooks/useMessages";
 import { useChatWebSocket } from "../../hooks/useWebSocket";
 import MessageBubble from "./MessageBubble";
@@ -14,56 +14,84 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
   const messagesEndRef = useRef(null);
   const containerRef = useRef(null);
 
+  // Strongest duplicate prevention
+  const isSendingRef = useRef(false);
+  const lastSentMessageRef = useRef("");
+  const sentMessageIdsRef = useRef(new Set());
+
   // ============================================
-  // 📋 Load messages with infinite scroll
+  // Load messages with infinite scroll
   // ============================================
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useMessages(conversationId);
 
   // ============================================
-  // 🔗 WebSocket for real-time messages
+  // WebSocket for real-time messages
   // ============================================
   const { isConnected, sendMessage, sendTyping } = useChatWebSocket({
     conversationId,
-    onMessageReceived: (newMessage) => {
-      console.log("📩 New message received:", newMessage);
-      setMessages((prev) => [newMessage, ...prev]);
-      if (isAtBottom) {
-        scrollToBottom();
-      }
-    },
+    onMessageReceived: useCallback(
+      (newMessage) => {
+        console.log("New message received:", newMessage);
+        setMessages((prev) => {
+          // Check for duplicate by ID or content + time
+          if (
+            prev.some(
+              (msg) =>
+                msg.id === newMessage.id ||
+                (msg.text === newMessage.text &&
+                  msg.created_at === newMessage.created_at),
+            )
+          ) {
+            console.log("Duplicate message blocked");
+            return prev;
+          }
+          return [newMessage, ...prev];
+        });
+        if (isAtBottom) {
+          scrollToBottom();
+        }
+      },
+      [isAtBottom],
+    ),
   });
 
   // ============================================
-  // ✅ Mark messages as read
+  // Mark messages as read
   // ============================================
   const markAsReadMutation = useMarkAsRead(conversationId);
 
   // ============================================
-  // 📦 Flatten messages from paginated data
+  // Flatten messages from paginated data
   // ============================================
   useEffect(() => {
-    if (data?.pages) {
-      const allMessages = data.pages.flatMap((page) => page.results || []);
-      setMessages(allMessages);
-    }
+    if (!data?.pages) return;
+
+    const allMessages = data.pages.flatMap((page) => page.results || []);
+
+    setMessages((prev) => {
+      const existingIds = new Set(prev.map((m) => m.id));
+      const newMessages = allMessages.filter((m) => !existingIds.has(m.id));
+      if (newMessages.length === 0) return prev;
+      console.log(`Adding ${newMessages.length} new messages from pagination`);
+      return [...newMessages, ...prev];
+    });
   }, [data]);
 
   // ============================================
-  // 📅 Group messages by date (like WhatsApp)
+  // Group messages by date (like WhatsApp)
   // ============================================
-  const getDateKey = (dateString) => {
+  const getDateKey = useCallback((dateString) => {
     const date = new Date(dateString);
     return new Date(
       date.getFullYear(),
       date.getMonth(),
       date.getDate(),
     ).toISOString();
-  };
+  }, []);
 
-  const groupedMessages = useCallback(() => {
+  const groupedMessages = useMemo(() => {
     const groups = {};
-
     messages.forEach((message) => {
       const dateKey = getDateKey(message.created_at);
       if (!groups[dateKey]) {
@@ -71,14 +99,13 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
       }
       groups[dateKey].push(message);
     });
-
     return Object.entries(groups).sort((a, b) => {
       return new Date(a[0]) - new Date(b[0]);
     });
-  }, [messages]);
+  }, [messages, getDateKey]);
 
   // ============================================
-  // 📜 Scroll to bottom
+  // Scroll functions
   // ============================================
   const scrollToBottom = useCallback(() => {
     setTimeout(() => {
@@ -86,9 +113,6 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
     }, 100);
   }, []);
 
-  // ============================================
-  // 📜 Handle scroll events
-  // ============================================
   const handleScroll = useCallback(
     (e) => {
       const target = e.currentTarget;
@@ -96,6 +120,7 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
         target.scrollHeight - target.scrollTop <= target.clientHeight + 50;
       setIsAtBottom(isBottom);
 
+      // Load more messages when scrolling to top
       if (target.scrollTop === 0 && hasNextPage && !isFetchingNextPage) {
         fetchNextPage();
       }
@@ -104,7 +129,7 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
   );
 
   // ============================================
-  // ✅ Mark as read when component mounts
+  // Mark messages as read on mount
   // ============================================
   useEffect(() => {
     if (conversationId && messages.length > 0) {
@@ -113,75 +138,124 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
   }, [conversationId, messages.length]);
 
   // ============================================
-  // 📜 Scroll to bottom on initial load
+  // Scroll to bottom on initial load
   // ============================================
   useEffect(() => {
     if (!isLoading && messages.length > 0) {
-      scrollToBottom();
+      setTimeout(scrollToBottom, 300);
     }
   }, [isLoading, messages.length, scrollToBottom]);
 
   // ============================================
-  // 📊 Debug connection status
-  // ============================================
-  useEffect(() => {
-    console.log("🔗 Connection status:", {
-      isConnected,
-      conversationId,
-    });
-  }, [isConnected, conversationId]);
-
-  // ============================================
-  // ⌨️ Handle typing indicator
-  // ============================================
-  const handleTyping = useCallback(
-    (isTyping) => {
-      sendTyping(isTyping);
-    },
-    [sendTyping],
-  );
-
-  // ============================================
-  // 📤 Handle send message
+  // Handle send message with 4-layer protection
   // ============================================
   const handleSend = useCallback(
     (text) => {
-      console.log("📤 handleSend called with text:", text);
+      console.log("handleSend called with text:", text);
 
+      // Layer 1: Check for empty text
       if (!text?.trim()) {
-        console.log("❌ Empty text, ignoring");
+        console.log("Empty text, ignoring");
         return;
       }
 
-      console.log("📤 Calling sendMessage...");
-      const success = sendMessage(text);
-      console.log("📤 sendMessage result:", success);
+      // Layer 2: Check for concurrent send
+      if (isSendingRef.current) {
+        console.log("Already sending, ignoring");
+        return;
+      }
 
-      if (success) {
-        const tempMessage = {
-          id: Date.now(),
-          text: text,
-          sender: "me",
-          created_at: new Date().toISOString(),
-          is_read: false,
-        };
-        console.log("📤 Adding temp message:", tempMessage);
-        setMessages((prev) => [tempMessage, ...prev]);
-        scrollToBottom();
+      // Layer 3: Check for duplicate text
+      if (text.trim() === lastSentMessageRef.current) {
+        console.log("Duplicate text blocked:", text.trim());
+        return;
+      }
+
+      // Layer 4: Check WebSocket connection
+      if (!isConnected) {
+        console.log("Not connected, ignoring");
+        return;
+      }
+
+      console.log("Sending message:", text.trim());
+
+      // Lock the send process
+      isSendingRef.current = true;
+      lastSentMessageRef.current = text.trim();
+
+      try {
+        const success = sendMessage(text.trim());
+        console.log("sendMessage result:", success);
+
+        if (success) {
+          // Generate unique temp ID
+          const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+          // Check for duplicate temp ID
+          if (sentMessageIdsRef.current.has(tempId)) {
+            console.log("Duplicate temp ID blocked");
+            return;
+          }
+
+          const tempMessage = {
+            id: tempId,
+            text: text.trim(),
+            sender: "me",
+            created_at: new Date().toISOString(),
+            is_read: false,
+          };
+
+          console.log("Adding temp message:", tempMessage);
+          sentMessageIdsRef.current.add(tempId);
+
+          setMessages((prev) => {
+            // Check if message already exists in state
+            const exists = prev.some(
+              (msg) =>
+                msg.text === tempMessage.text &&
+                msg.sender === tempMessage.sender &&
+                Math.abs(
+                  new Date(msg.created_at) - new Date(tempMessage.created_at),
+                ) < 1000,
+            );
+            if (exists) {
+              console.log("Message already in state, skipping");
+              return prev;
+            }
+            return [tempMessage, ...prev];
+          });
+
+          scrollToBottom();
+
+          // Release lock after 1.5 seconds
+          setTimeout(() => {
+            sentMessageIdsRef.current.delete(tempId);
+            isSendingRef.current = false;
+            console.log("Sending lock released");
+          }, 1500);
+        } else {
+          // Release lock if send failed
+          isSendingRef.current = false;
+          lastSentMessageRef.current = "";
+        }
+      } catch (error) {
+        console.error("Error sending:", error);
+        isSendingRef.current = false;
+        lastSentMessageRef.current = "";
       }
     },
-    [sendMessage, scrollToBottom],
+    [sendMessage, scrollToBottom, isConnected],
   );
 
   // ============================================
-  // 🎨 Render
+  // Render
   // ============================================
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500 mx-auto"></div>
-          <p className="mt-2 text-[rgb(var(--muted-foreground))] text-sm">
+          <p className="mt-2 text-[rgb(var(--muted-foreground))] text-sm sm:text-base">
             Loading messages...
           </p>
         </div>
@@ -189,61 +263,40 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
     );
   }
 
-  const groupedMessagesList = groupedMessages();
+  const groupedMessagesList = groupedMessages;
 
   return (
     <div className="flex flex-col h-full bg-[rgb(var(--background))]">
-      {/* ===== Header ===== */}
       <ChatHeader
         otherUser={otherUser}
         carInfo={carInfo}
         isOnline={isConnected}
       />
 
-      {/* ===== Messages Container ===== */}
       <div
         ref={containerRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto p-4 space-y-2"
+        className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-1"
       >
-        {/* Load more indicator */}
         {isFetchingNextPage && (
           <div className="text-center py-2">
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500 mx-auto"></div>
           </div>
         )}
 
-        {/* ===== Grouped Messages ===== */}
         {groupedMessagesList.length === 0 ? (
           <div className="text-center py-16 text-[rgb(var(--muted-foreground))]">
             <p className="text-4xl mb-2">💬</p>
-            <p>No messages yet</p>
-            <p className="text-sm">Start the conversation!</p>
+            <p className="text-sm sm:text-base">No messages yet</p>
+            <p className="text-xs sm:text-sm">Start the conversation!</p>
           </div>
         ) : (
           groupedMessagesList.map(([dateKey, groupMessages]) => (
             <div key={dateKey}>
-              {/* ===== Date Header ===== */}
               <DateHeader date={dateKey} />
-
-              {/* ===== Messages for this date ===== */}
-              {groupMessages.map((message, index) => {
-                const prevMessage = index > 0 ? groupMessages[index - 1] : null;
-                const showTime =
-                  !prevMessage ||
-                  new Date(message.created_at).getHours() !==
-                    new Date(prevMessage.created_at).getHours() ||
-                  new Date(message.created_at).getMinutes() !==
-                    new Date(prevMessage.created_at).getMinutes();
-
-                return (
-                  <MessageBubble
-                    key={message.id}
-                    message={message}
-                    showTime={showTime}
-                  />
-                );
-              })}
+              {groupMessages.map((message) => (
+                <MessageBubble key={message.id} message={message} />
+              ))}
             </div>
           ))
         )}
@@ -251,18 +304,17 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* ===== Input ===== */}
-      <div className="border-t border-[rgb(var(--border))] p-4 bg-[rgb(var(--card))]">
+      <div className="border-t border-[rgb(var(--border))] p-2 sm:p-4 bg-[rgb(var(--card))]">
         <MessageInput
           onSend={handleSend}
-          onTyping={handleTyping}
+          onTyping={sendTyping}
           disabled={!isConnected}
           placeholder={
             !isConnected ? "⏳ Connecting..." : "Type your message..."
           }
         />
         {!isConnected && (
-          <p className="text-xs text-yellow-600 mt-2 text-center">
+          <p className="text-[10px] sm:text-xs text-yellow-600 mt-1 sm:mt-2 text-center">
             🔄 Attempting to reconnect...
           </p>
         )}
