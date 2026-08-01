@@ -16,6 +16,7 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
 
   const isProcessingRef = useRef(false);
   const processedMessagesRef = useRef(new Set());
+  const sentMessageIdsRef = useRef(new Set());
 
   // ============================================
   // Load messages with infinite scroll
@@ -42,11 +43,10 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
         if (prev.some((msg) => msg.id === newMessage.id)) {
           return prev;
         }
-        // ✅ Add new message to the END (bottom) of the list
+        // ✅ Add new message to the END (bottom)
         return [...prev, newMessage];
       });
 
-      // ✅ Scroll to bottom when new message arrives
       setTimeout(scrollToBottom, 100);
     }, []),
   });
@@ -57,20 +57,32 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
   const markAsReadMutation = useMarkAsRead(conversationId);
 
   // ============================================
-  // Flatten messages from paginated data
+  // Flatten messages from paginated data - FIXED
   // ============================================
   useEffect(() => {
     if (!data?.pages) return;
 
+    // Get all messages from all pages
     const allMessages = data.pages.flatMap((page) => page.results || []);
 
     setMessages((prev) => {
       const existingIds = new Set(prev.map((m) => m.id));
+
+      // ✅ Filter out messages that already exist
       const newMessages = allMessages.filter((m) => !existingIds.has(m.id));
+
       if (newMessages.length === 0) return prev;
+
       console.log(`Adding ${newMessages.length} new messages from pagination`);
-      // ✅ Add new messages to the END (older messages go first)
-      return [...prev, ...newMessages];
+
+      // ✅ Combine: existing messages + new messages (oldest first)
+      // All messages should be sorted by created_at (oldest to newest)
+      const combined = [...prev, ...newMessages];
+
+      // ✅ Sort by created_at to ensure correct order
+      return combined.sort((a, b) => {
+        return new Date(a.created_at) - new Date(b.created_at);
+      });
     });
   }, [data]);
 
@@ -87,7 +99,10 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
   }, []);
 
   const groupedMessages = useMemo(() => {
+    if (!messages || messages.length === 0) return [];
+
     const groups = {};
+
     messages.forEach((message) => {
       const dateKey = getDateKey(message.created_at);
       if (!groups[dateKey]) {
@@ -95,6 +110,7 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
       }
       groups[dateKey].push(message);
     });
+
     // ✅ Sort groups by date (oldest first)
     return Object.entries(groups).sort((a, b) => {
       return new Date(a[0]) - new Date(b[0]);
@@ -135,10 +151,11 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
   }, [conversationId, messages.length]);
 
   // ============================================
-  // Scroll to bottom on initial load
+  // Scroll to bottom on initial load - FIXED
   // ============================================
   useEffect(() => {
     if (!isLoading && messages.length > 0) {
+      // Wait for DOM to render then scroll to bottom
       setTimeout(scrollToBottom, 300);
     }
   }, [isLoading, messages.length, scrollToBottom]);
@@ -165,6 +182,13 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
         return;
       }
 
+      const sendId = `${text.trim()}_${Date.now()}`;
+      if (sentMessageIdsRef.current.has(sendId)) {
+        console.log("Duplicate send attempt blocked:", sendId);
+        return;
+      }
+      sentMessageIdsRef.current.add(sendId);
+
       console.log("Processing send for:", text.trim());
       isProcessingRef.current = true;
 
@@ -186,6 +210,7 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
           console.log("Adding temp message:", tempMessage);
 
           setMessages((prev) => {
+            // Check for duplicate in state
             const exists = prev.some(
               (msg) =>
                 msg.text === tempMessage.text &&
@@ -197,11 +222,10 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
               console.log("Message already in state, skipping");
               return prev;
             }
-            // ✅ Add temp message to the END (bottom)
+            // ✅ Add to END (bottom)
             return [...prev, tempMessage];
           });
 
-          // ✅ Scroll to bottom after sending
           setTimeout(scrollToBottom, 100);
         }
       } catch (error) {
@@ -209,6 +233,7 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
       } finally {
         setTimeout(() => {
           isProcessingRef.current = false;
+          sentMessageIdsRef.current.clear();
           console.log("Processing lock released");
         }, 1500);
       }
@@ -232,8 +257,6 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
     );
   }
 
-  const groupedMessagesList = groupedMessages;
-
   return (
     <div className="flex flex-col h-full bg-[rgb(var(--background))]">
       <ChatHeader
@@ -253,14 +276,14 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
           </div>
         )}
 
-        {groupedMessagesList.length === 0 ? (
+        {groupedMessages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-[rgb(var(--muted-foreground))]">
             <p className="text-4xl mb-2">💬</p>
             <p className="text-sm sm:text-base">No messages yet</p>
             <p className="text-xs sm:text-sm">Start the conversation!</p>
           </div>
         ) : (
-          groupedMessagesList.map(([dateKey, groupMessages]) => (
+          groupedMessages.map(([dateKey, groupMessages]) => (
             <div key={dateKey}>
               <DateHeader date={dateKey} />
               {groupMessages.map((message) => (

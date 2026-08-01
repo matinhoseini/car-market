@@ -10,10 +10,10 @@ const MessageInput = ({
 }) => {
   const [text, setText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  const [isSending, setIsSending] = useState(false); // ✅ State for button disable
+  const [isSending, setIsSending] = useState(false);
   const textareaRef = useRef(null);
   const typingTimeoutRef = useRef(null);
-  const submitCountRef = useRef(0); // ✅ Track submit count
+  const lastSentRef = useRef(""); // Track last sent message
 
   // ============================================
   // Handle send message
@@ -21,25 +21,21 @@ const MessageInput = ({
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    // ✅ Prevent if already sending or disabled
+    // Block if sending, disabled, or empty
     if (isSending || disabled || !text.trim()) {
       console.log("Blocked:", { isSending, disabled, text: text.trim() });
       return;
     }
 
-    // ✅ Increment submit counter
-    submitCountRef.current += 1;
-    console.log(`Submit #${submitCountRef.current}:`, text.trim());
-
-    // ✅ If more than 1 submit in 500ms, block
-    if (submitCountRef.current > 1) {
-      console.log("Duplicate submit blocked!");
-      submitCountRef.current = 0;
+    // Block duplicate text
+    if (text.trim() === lastSentRef.current) {
+      console.log("Duplicate text blocked:", text.trim());
       return;
     }
 
     console.log("Sending message:", text.trim());
     setIsSending(true);
+    lastSentRef.current = text.trim();
 
     try {
       onSend(text.trim());
@@ -50,12 +46,10 @@ const MessageInput = ({
     } catch (error) {
       console.error("Error sending:", error);
     } finally {
-      // ✅ Reset after 1 second
+      // Release lock after 800ms
       setTimeout(() => {
         setIsSending(false);
-        submitCountRef.current = 0;
-        console.log("Send lock released");
-      }, 1000);
+      }, 800);
     }
   };
 
