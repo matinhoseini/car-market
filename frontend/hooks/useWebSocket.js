@@ -11,33 +11,36 @@ export const useChatWebSocket = ({ conversationId, onMessageReceived }) => {
   const reconnectAttempts = useRef(0);
   const queryClient = useQueryClient();
 
-  // ============================================
-  // Connect to WebSocket
-  // ============================================
   const connect = useCallback(() => {
-    // Prevent multiple connections
-    if (wsRef.current?.readyState === WebSocket.OPEN) return;
-    if (isConnecting) return;
+    // ✅ جلوگیری از اتصال مجدد اگر قبلاً متصل است
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      console.log("ℹ️ WebSocket already connected");
+      return;
+    }
+
+    // ✅ جلوگیری از اتصال همزمان
+    if (isConnecting) {
+      console.log("ℹ️ WebSocket is already connecting");
+      return;
+    }
 
     setIsConnecting(true);
 
-    // Get token from localStorage
     const token = localStorage.getItem("access_token");
 
-    // Redirect to login if no token
     if (!token) {
-      console.error("No access token found, redirecting to login...");
-      window.location.href = "/auth/login";
+      console.error("❌ No access token found");
+      setIsConnecting(false);
       return;
     }
 
     const wsUrl = `${process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000"}/ws/chat/${conversationId}/?token=${token}`;
 
-    console.log("Connecting to WebSocket:", wsUrl);
+    console.log("🔄 Connecting to WebSocket:", wsUrl);
     wsRef.current = new WebSocket(wsUrl);
 
     wsRef.current.onopen = () => {
-      console.log("WebSocket connected!");
+      console.log("✅ WebSocket connected!");
       setIsConnected(true);
       setIsConnecting(false);
       reconnectAttempts.current = 0;
@@ -46,12 +49,13 @@ export const useChatWebSocket = ({ conversationId, onMessageReceived }) => {
     wsRef.current.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        console.log("Message received:", data);
+        console.log("📩 Message received:", data);
 
-        if (data.type === "message") {
+        // ✅ Handle different message types
+        if (data.type === "message" || data.type === "chat_message") {
           const newMessage = data.payload || data.message;
 
-          // Update React Query cache
+          // Update cache
           queryClient.setQueryData(
             messageKeys.list(conversationId),
             (oldData) => {
@@ -74,17 +78,28 @@ export const useChatWebSocket = ({ conversationId, onMessageReceived }) => {
             onMessageReceived(newMessage);
           }
         }
+
+        // ✅ Handle connection confirmation
+        if (data.type === "connection") {
+          console.log("🔗 Connection confirmed:", data);
+        }
+
+        // ✅ Handle errors
+        if (data.type === "error") {
+          console.error("❌ Server error:", data.message);
+          toast.error(data.message);
+        }
       } catch (error) {
-        console.error("Error parsing WebSocket message:", error);
+        console.error("❌ Error parsing WebSocket message:", error);
       }
     };
 
     wsRef.current.onclose = (event) => {
-      console.log(`WebSocket closed (code: ${event.code})`);
+      console.log(`🔌 WebSocket closed (code: ${event.code})`);
       setIsConnected(false);
       setIsConnecting(false);
 
-      // Auto-reconnect with exponential backoff
+      // ✅ اگر کد 1000 نباشد، دوباره وصل شو
       if (reconnectAttempts.current < 10 && event.code !== 1000) {
         const delay = Math.min(
           1000 * Math.pow(1.5, reconnectAttempts.current),
@@ -92,20 +107,24 @@ export const useChatWebSocket = ({ conversationId, onMessageReceived }) => {
         );
         reconnectTimeoutRef.current = setTimeout(() => {
           reconnectAttempts.current++;
-          console.log(`Reconnecting... Attempt ${reconnectAttempts.current}`);
+          console.log(
+            `🔄 Reconnecting... Attempt ${reconnectAttempts.current}`,
+          );
           connect();
         }, delay);
+      } else if (event.code === 1000) {
+        console.log("✅ Normal closure, no reconnect needed");
       }
     };
 
     wsRef.current.onerror = (error) => {
-      console.error("WebSocket error:", error);
+      console.error("❌ WebSocket error:", error);
       setIsConnecting(false);
     };
   }, [conversationId, onMessageReceived, queryClient, isConnecting]);
 
   // ============================================
-  // Send message
+  // 📤 Send message
   // ============================================
   const sendMessage = useCallback((text) => {
     if (!text?.trim()) {
@@ -121,40 +140,41 @@ export const useChatWebSocket = ({ conversationId, onMessageReceived }) => {
     try {
       const messageData = {
         type: "message",
-        payload: {
-          text: text.trim(),
-        },
+        message: text.trim(), // ✅ ارسال به فرمت مورد انتظار Backend
       };
       wsRef.current.send(JSON.stringify(messageData));
-      console.log("Message sent:", text);
+      console.log("📤 Message sent:", text);
       return true;
     } catch (error) {
-      console.error("Error sending message:", error);
+      console.error("❌ Error sending message:", error);
       toast.error("Failed to send message");
       return false;
     }
   }, []);
 
   // ============================================
-  // Send typing indicator
+  // ⌨️ Send typing indicator
   // ============================================
   const sendTyping = useCallback((isTyping) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(
         JSON.stringify({
           type: "typing",
-          payload: { is_typing: isTyping },
+          is_typing: isTyping,
         }),
       );
     }
   }, []);
 
   // ============================================
-  // Disconnect
+  // 🔌 Disconnect
   // ============================================
   const disconnect = useCallback(() => {
     if (wsRef.current) {
-      wsRef.current.close(1000, "User disconnected");
+      // ✅ بستن با کد 1000 (بستن عادی)
+      if (wsRef.current.readyState === WebSocket.OPEN) {
+        wsRef.current.close(1000, "User disconnected");
+      }
       wsRef.current = null;
     }
     if (reconnectTimeoutRef.current) {
@@ -166,7 +186,7 @@ export const useChatWebSocket = ({ conversationId, onMessageReceived }) => {
   }, []);
 
   // ============================================
-  // Lifecycle
+  // 🔄 Lifecycle
   // ============================================
   useEffect(() => {
     if (conversationId) {

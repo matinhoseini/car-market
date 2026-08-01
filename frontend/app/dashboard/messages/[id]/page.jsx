@@ -8,7 +8,7 @@ import DashboardLayout from "../../../../components/dashboard/DashboardLayout";
 
 const ChatPage = () => {
   const router = useRouter();
-  const params = useParams(); // ✅ گرفتن پارامترها با useParams
+  const params = useParams();
   const conversationId = parseInt(params.id); // ✅ گرفتن id از params
 
   // ============================================
