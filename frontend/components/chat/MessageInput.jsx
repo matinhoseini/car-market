@@ -10,9 +10,10 @@ const MessageInput = ({
 }) => {
   const [text, setText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  const isSendingLocal = useRef(false); // Local lock
+  const [isSending, setIsSending] = useState(false); // ✅ State for button disable
   const textareaRef = useRef(null);
   const typingTimeoutRef = useRef(null);
+  const submitCountRef = useRef(0); // ✅ Track submit count
 
   // ============================================
   // Handle send message
@@ -20,18 +21,25 @@ const MessageInput = ({
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    // Prevent duplicate sends at component level
-    if (isSendingLocal.current || disabled || !text.trim()) {
-      console.log("Local block:", {
-        isSendingLocal: isSendingLocal.current,
-        disabled,
-        text: text.trim(),
-      });
+    // ✅ Prevent if already sending or disabled
+    if (isSending || disabled || !text.trim()) {
+      console.log("Blocked:", { isSending, disabled, text: text.trim() });
+      return;
+    }
+
+    // ✅ Increment submit counter
+    submitCountRef.current += 1;
+    console.log(`Submit #${submitCountRef.current}:`, text.trim());
+
+    // ✅ If more than 1 submit in 500ms, block
+    if (submitCountRef.current > 1) {
+      console.log("Duplicate submit blocked!");
+      submitCountRef.current = 0;
       return;
     }
 
     console.log("Sending message:", text.trim());
-    isSendingLocal.current = true;
+    setIsSending(true);
 
     try {
       onSend(text.trim());
@@ -42,16 +50,17 @@ const MessageInput = ({
     } catch (error) {
       console.error("Error sending:", error);
     } finally {
-      // Release lock after 800ms
+      // ✅ Reset after 1 second
       setTimeout(() => {
-        isSendingLocal.current = false;
-        console.log("Local lock released");
-      }, 800);
+        setIsSending(false);
+        submitCountRef.current = 0;
+        console.log("Send lock released");
+      }, 1000);
     }
   };
 
   // ============================================
-  // Handle Enter key (Shift+Enter for new line)
+  // Handle Enter key
   // ============================================
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -67,13 +76,11 @@ const MessageInput = ({
     const value = e.target.value;
     setText(value);
 
-    // Auto-resize textarea
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
       textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
     }
 
-    // Typing indicator
     if (!isTyping && value.trim()) {
       setIsTyping(true);
       if (onTyping) onTyping(true);
@@ -110,16 +117,16 @@ const MessageInput = ({
         onChange={handleChange}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
-        disabled={disabled || isSendingLocal.current}
+        disabled={disabled || isSending}
         rows={1}
         className="flex-1 p-2 sm:p-3 border border-[rgb(var(--border))] rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:bg-[rgb(var(--muted))] max-h-32 min-h-[40px] sm:min-h-[44px] bg-[rgb(var(--background))] text-[rgb(var(--foreground))] text-sm sm:text-base"
       />
       <button
         type="submit"
-        disabled={disabled || isSendingLocal.current || !text.trim()}
+        disabled={disabled || isSending || !text.trim()}
         className="btn-primary flex items-center gap-1.5 sm:gap-2 h-[40px] sm:h-[44px] px-3 sm:px-4 flex-shrink-0 text-sm sm:text-base"
       >
-        {isSendingLocal.current ? "Sending..." : "Send"}
+        {isSending ? "Sending..." : "Send"}
       </button>
     </form>
   );

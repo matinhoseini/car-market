@@ -14,10 +14,9 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
   const messagesEndRef = useRef(null);
   const containerRef = useRef(null);
 
-  // Strongest duplicate prevention
-  const isSendingRef = useRef(false);
-  const lastSentMessageRef = useRef("");
-  const sentMessageIdsRef = useRef(new Set());
+  // ✅ Track processing state
+  const isProcessingRef = useRef(false);
+  const processedMessagesRef = useRef(new Set());
 
   // ============================================
   // Load messages with infinite scroll
@@ -33,17 +32,17 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
     onMessageReceived: useCallback(
       (newMessage) => {
         console.log("New message received:", newMessage);
+
+        // ✅ Prevent duplicate processing
+        const msgKey = `${newMessage.text}_${newMessage.created_at}`;
+        if (processedMessagesRef.current.has(msgKey)) {
+          console.log("Duplicate message blocked in receive");
+          return;
+        }
+        processedMessagesRef.current.add(msgKey);
+
         setMessages((prev) => {
-          // Check for duplicate by ID or content + time
-          if (
-            prev.some(
-              (msg) =>
-                msg.id === newMessage.id ||
-                (msg.text === newMessage.text &&
-                  msg.created_at === newMessage.created_at),
-            )
-          ) {
-            console.log("Duplicate message blocked");
+          if (prev.some((msg) => msg.id === newMessage.id)) {
             return prev;
           }
           return [newMessage, ...prev];
@@ -79,7 +78,7 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
   }, [data]);
 
   // ============================================
-  // Group messages by date (like WhatsApp)
+  // Group messages by date
   // ============================================
   const getDateKey = useCallback((dateString) => {
     const date = new Date(dateString);
@@ -120,7 +119,6 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
         target.scrollHeight - target.scrollTop <= target.clientHeight + 50;
       setIsAtBottom(isBottom);
 
-      // Load more messages when scrolling to top
       if (target.scrollTop === 0 && hasNextPage && !isFetchingNextPage) {
         fetchNextPage();
       }
@@ -147,55 +145,38 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
   }, [isLoading, messages.length, scrollToBottom]);
 
   // ============================================
-  // Handle send message with 4-layer protection
+  // Handle send message - with processing lock
   // ============================================
   const handleSend = useCallback(
     (text) => {
       console.log("handleSend called with text:", text);
 
-      // Layer 1: Check for empty text
+      // ✅ Prevent concurrent processing
+      if (isProcessingRef.current) {
+        console.log("Already processing, ignoring");
+        return;
+      }
+
       if (!text?.trim()) {
         console.log("Empty text, ignoring");
         return;
       }
 
-      // Layer 2: Check for concurrent send
-      if (isSendingRef.current) {
-        console.log("Already sending, ignoring");
-        return;
-      }
-
-      // Layer 3: Check for duplicate text
-      if (text.trim() === lastSentMessageRef.current) {
-        console.log("Duplicate text blocked:", text.trim());
-        return;
-      }
-
-      // Layer 4: Check WebSocket connection
       if (!isConnected) {
         console.log("Not connected, ignoring");
         return;
       }
 
-      console.log("Sending message:", text.trim());
-
-      // Lock the send process
-      isSendingRef.current = true;
-      lastSentMessageRef.current = text.trim();
+      console.log("Processing send for:", text.trim());
+      isProcessingRef.current = true;
 
       try {
         const success = sendMessage(text.trim());
         console.log("sendMessage result:", success);
 
         if (success) {
-          // Generate unique temp ID
-          const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-          // Check for duplicate temp ID
-          if (sentMessageIdsRef.current.has(tempId)) {
-            console.log("Duplicate temp ID blocked");
-            return;
-          }
+          // ✅ Add temp message with unique ID
+          const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
 
           const tempMessage = {
             id: tempId,
@@ -206,17 +187,15 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
           };
 
           console.log("Adding temp message:", tempMessage);
-          sentMessageIdsRef.current.add(tempId);
 
           setMessages((prev) => {
-            // Check if message already exists in state
+            // ✅ Check if message already exists
             const exists = prev.some(
               (msg) =>
                 msg.text === tempMessage.text &&
-                msg.sender === tempMessage.sender &&
                 Math.abs(
                   new Date(msg.created_at) - new Date(tempMessage.created_at),
-                ) < 1000,
+                ) < 2000,
             );
             if (exists) {
               console.log("Message already in state, skipping");
@@ -226,22 +205,15 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
           });
 
           scrollToBottom();
-
-          // Release lock after 1.5 seconds
-          setTimeout(() => {
-            sentMessageIdsRef.current.delete(tempId);
-            isSendingRef.current = false;
-            console.log("Sending lock released");
-          }, 1500);
-        } else {
-          // Release lock if send failed
-          isSendingRef.current = false;
-          lastSentMessageRef.current = "";
         }
       } catch (error) {
         console.error("Error sending:", error);
-        isSendingRef.current = false;
-        lastSentMessageRef.current = "";
+      } finally {
+        // ✅ Release lock after 1.5 seconds
+        setTimeout(() => {
+          isProcessingRef.current = false;
+          console.log("Processing lock released");
+        }, 1500);
       }
     },
     [sendMessage, scrollToBottom, isConnected],
