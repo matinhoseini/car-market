@@ -14,7 +14,6 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
   const messagesEndRef = useRef(null);
   const containerRef = useRef(null);
 
-  // ✅ Track processing state
   const isProcessingRef = useRef(false);
   const processedMessagesRef = useRef(new Set());
 
@@ -29,30 +28,27 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
   // ============================================
   const { isConnected, sendMessage, sendTyping } = useChatWebSocket({
     conversationId,
-    onMessageReceived: useCallback(
-      (newMessage) => {
-        console.log("New message received:", newMessage);
+    onMessageReceived: useCallback((newMessage) => {
+      console.log("New message received:", newMessage);
 
-        // ✅ Prevent duplicate processing
-        const msgKey = `${newMessage.text}_${newMessage.created_at}`;
-        if (processedMessagesRef.current.has(msgKey)) {
-          console.log("Duplicate message blocked in receive");
-          return;
-        }
-        processedMessagesRef.current.add(msgKey);
+      const msgKey = `${newMessage.text}_${newMessage.created_at}`;
+      if (processedMessagesRef.current.has(msgKey)) {
+        console.log("Duplicate message blocked in receive");
+        return;
+      }
+      processedMessagesRef.current.add(msgKey);
 
-        setMessages((prev) => {
-          if (prev.some((msg) => msg.id === newMessage.id)) {
-            return prev;
-          }
-          return [newMessage, ...prev];
-        });
-        if (isAtBottom) {
-          scrollToBottom();
+      setMessages((prev) => {
+        if (prev.some((msg) => msg.id === newMessage.id)) {
+          return prev;
         }
-      },
-      [isAtBottom],
-    ),
+        // ✅ Add new message to the END (bottom) of the list
+        return [...prev, newMessage];
+      });
+
+      // ✅ Scroll to bottom when new message arrives
+      setTimeout(scrollToBottom, 100);
+    }, []),
   });
 
   // ============================================
@@ -73,12 +69,13 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
       const newMessages = allMessages.filter((m) => !existingIds.has(m.id));
       if (newMessages.length === 0) return prev;
       console.log(`Adding ${newMessages.length} new messages from pagination`);
-      return [...newMessages, ...prev];
+      // ✅ Add new messages to the END (older messages go first)
+      return [...prev, ...newMessages];
     });
   }, [data]);
 
   // ============================================
-  // Group messages by date
+  // Group messages by date (like WhatsApp)
   // ============================================
   const getDateKey = useCallback((dateString) => {
     const date = new Date(dateString);
@@ -98,6 +95,7 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
       }
       groups[dateKey].push(message);
     });
+    // ✅ Sort groups by date (oldest first)
     return Object.entries(groups).sort((a, b) => {
       return new Date(a[0]) - new Date(b[0]);
     });
@@ -119,6 +117,7 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
         target.scrollHeight - target.scrollTop <= target.clientHeight + 50;
       setIsAtBottom(isBottom);
 
+      // Load more messages when scrolling to top
       if (target.scrollTop === 0 && hasNextPage && !isFetchingNextPage) {
         fetchNextPage();
       }
@@ -145,13 +144,12 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
   }, [isLoading, messages.length, scrollToBottom]);
 
   // ============================================
-  // Handle send message - with processing lock
+  // Handle send message
   // ============================================
   const handleSend = useCallback(
     (text) => {
       console.log("handleSend called with text:", text);
 
-      // ✅ Prevent concurrent processing
       if (isProcessingRef.current) {
         console.log("Already processing, ignoring");
         return;
@@ -175,7 +173,6 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
         console.log("sendMessage result:", success);
 
         if (success) {
-          // ✅ Add temp message with unique ID
           const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
 
           const tempMessage = {
@@ -189,7 +186,6 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
           console.log("Adding temp message:", tempMessage);
 
           setMessages((prev) => {
-            // ✅ Check if message already exists
             const exists = prev.some(
               (msg) =>
                 msg.text === tempMessage.text &&
@@ -201,15 +197,16 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
               console.log("Message already in state, skipping");
               return prev;
             }
-            return [tempMessage, ...prev];
+            // ✅ Add temp message to the END (bottom)
+            return [...prev, tempMessage];
           });
 
-          scrollToBottom();
+          // ✅ Scroll to bottom after sending
+          setTimeout(scrollToBottom, 100);
         }
       } catch (error) {
         console.error("Error sending:", error);
       } finally {
-        // ✅ Release lock after 1.5 seconds
         setTimeout(() => {
           isProcessingRef.current = false;
           console.log("Processing lock released");
@@ -257,7 +254,7 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
         )}
 
         {groupedMessagesList.length === 0 ? (
-          <div className="text-center py-16 text-[rgb(var(--muted-foreground))]">
+          <div className="flex flex-col items-center justify-center h-full text-[rgb(var(--muted-foreground))]">
             <p className="text-4xl mb-2">💬</p>
             <p className="text-sm sm:text-base">No messages yet</p>
             <p className="text-xs sm:text-sm">Start the conversation!</p>

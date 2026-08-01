@@ -34,7 +34,7 @@ const MessageBubble = ({ message }) => {
           </p>
         )}
 
-        {/* Message text - Responsive font size */}
+        {/* Message text */}
         <p className="text-sm sm:text-base md:text-lg break-words whitespace-pre-wrap leading-relaxed">
           {message.text}
         </p>
