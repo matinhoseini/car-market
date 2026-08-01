@@ -2,17 +2,21 @@
 
 import { useAuthStore } from "../../store/authStore";
 
-const MessageBubble = ({ message }) => {
+const MessageBubble = ({ message, showTime = true }) => {
   const { user } = useAuthStore();
   const isOwn = message.sender === user?.id;
 
-  // Format time
+  // ============================================
+  // 🕐 Format time (English - 12-hour with AM/PM)
+  // ============================================
   const formatTime = (dateString) => {
     const date = new Date(dateString);
-    return date.toLocaleTimeString("fa-IR", {
+    return date.toLocaleTimeString("en-US", {
       hour: "2-digit",
       minute: "2-digit",
+      hour12: true, // ✅ AM/PM
     });
+    // خروجی: "10:30 AM" یا "02:30 PM"
   };
 
   return (
@@ -45,7 +49,7 @@ const MessageBubble = ({ message }) => {
               isOwn ? "text-primary-100" : "text-[rgb(var(--muted-foreground))]"
             }`}
           >
-            {formatTime(message.created_at)}
+            {showTime && formatTime(message.created_at)}
           </p>
           {isOwn && message.is_read && (
             <span className="text-[10px] text-primary-200">✓✓</span>
