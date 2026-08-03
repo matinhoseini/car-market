@@ -33,13 +33,14 @@ const Header = memo(() => {
   const userMenuRef = useRef(null);
 
   // ============================================
-  // 📋 Memoized navigation items - Only Home, About, Vehicles in header
+  // 📋 Memoized navigation items - Home, Vehicles, About, Dashboard in header
   // ============================================
   const navItems = useMemo(
     () => [
       { href: "/", label: "Home", icon: Car },
       { href: "/vehicles", label: "Vehicles", icon: CarFront },
       { href: "/about", label: "About", icon: Info },
+      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     ],
     [],
   );
@@ -49,7 +50,6 @@ const Header = memo(() => {
   // ============================================
   const protectedMenuItems = useMemo(
     () => [
-      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
       {
         href: "/dashboard/add-vehicle",
         label: "Add Vehicle",
@@ -182,7 +182,7 @@ const Header = memo(() => {
               </span>
             </Link>
 
-            {/* ===== Desktop Navigation - Only Home, Vehicles, About ===== */}
+            {/* ===== Desktop Navigation - Home, Vehicles, About, Dashboard ===== */}
             <nav className="hidden lg:flex items-center gap-1">
               {navItems.map((item) => {
                 const active = isActive(item.href);
