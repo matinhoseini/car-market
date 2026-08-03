@@ -1,4 +1,3 @@
-// components/common/Header.jsx
 "use client";
 
 import Link from "next/link";
@@ -15,6 +14,7 @@ import {
   Settings,
   Heart,
   PlusCircle,
+  MessageCircle,
 } from "lucide-react";
 import DarkToggle from "./DarkToggle";
 import { useRouter } from "next/navigation";
@@ -33,17 +33,21 @@ const Header = memo(() => {
   const userMenuRef = useRef(null);
 
   // ============================================
-  // 📋 Memoized navigation items
+  // 📋 Memoized navigation items - Only Home, About, Vehicles in header
   // ============================================
   const navItems = useMemo(
     () => [
+      { href: "/", label: "Home", icon: Car },
       { href: "/vehicles", label: "Vehicles", icon: CarFront },
       { href: "/about", label: "About", icon: Info },
     ],
     [],
   );
 
-  const protectedNavItems = useMemo(
+  // ============================================
+  // 📋 Protected items - Only in user menu (desktop & mobile)
+  // ============================================
+  const protectedMenuItems = useMemo(
     () => [
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
       {
@@ -52,6 +56,7 @@ const Header = memo(() => {
         icon: PlusCircle,
       },
       { href: "/dashboard/favorites", label: "Favorites", icon: Heart },
+      { href: "/dashboard/messages", label: "Messages", icon: MessageCircle },
       { href: "/dashboard/profile", label: "Profile", icon: Settings },
     ],
     [],
@@ -61,6 +66,7 @@ const Header = memo(() => {
   // 📍 Check if link is active
   // ============================================
   const isActive = useCallback((href) => {
+    if (typeof window === "undefined") return false;
     if (href === "/") {
       return window.location.pathname === href;
     }
@@ -124,21 +130,6 @@ const Header = memo(() => {
   }, []);
 
   // ============================================
-  // 🚪 Handle dashboard click with token validation
-  // ============================================
-  const handleDashboardClick = useCallback(
-    (e) => {
-      const token = localStorage.getItem("access_token");
-      if (!token) {
-        e.preventDefault();
-        router.push("/auth/register");
-      }
-      setIsMenuOpen(false);
-    },
-    [router],
-  );
-
-  // ============================================
   // 🚪 Handle logout click
   // ============================================
   const handleLogoutClick = useCallback(() => {
@@ -191,7 +182,7 @@ const Header = memo(() => {
               </span>
             </Link>
 
-            {/* ===== Desktop Navigation ===== */}
+            {/* ===== Desktop Navigation - Only Home, Vehicles, About ===== */}
             <nav className="hidden lg:flex items-center gap-1">
               {navItems.map((item) => {
                 const active = isActive(item.href);
@@ -213,44 +204,6 @@ const Header = memo(() => {
                   </Link>
                 );
               })}
-
-              <Link
-                href="/dashboard"
-                onClick={handleDashboardClick}
-                className={`
-                  px-3 py-1.5 rounded-lg text-sm font-medium
-                  transition-all duration-200 hover:scale-95
-                  ${
-                    isActive("/dashboard")
-                      ? "bg-primary-500/10 text-primary-500 shadow-sm ring-1 ring-primary-500/20"
-                      : "text-[rgb(var(--foreground))] hover:text-primary-500 hover:bg-[rgb(var(--muted))]"
-                  }
-                `}
-              >
-                Dashboard
-              </Link>
-
-              {user &&
-                protectedNavItems.slice(1).map((item) => {
-                  const active = isActive(item.href);
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className={`
-                        px-3 py-1.5 rounded-lg text-sm font-medium
-                        transition-all duration-200 hover:scale-95
-                        ${
-                          active
-                            ? "bg-primary-500/10 text-primary-500 shadow-sm ring-1 ring-primary-500/20"
-                            : "text-[rgb(var(--foreground))] hover:text-primary-500 hover:bg-[rgb(var(--muted))]"
-                        }
-                      `}
-                    >
-                      {item.label}
-                    </Link>
-                  );
-                })}
             </nav>
 
             {/* ===== Right side actions ===== */}
@@ -271,18 +224,19 @@ const Header = memo(() => {
                     </span>
                   </button>
 
+                  {/* ===== Desktop User Menu (Protected Items) ===== */}
                   {isUserMenuOpen && (
-                    <div className="absolute right-0 mt-2 w-48 bg-[rgb(var(--card))] rounded-xl shadow-xl border border-[rgb(var(--border))] py-2 z-[9999] animate-fade-in">
+                    <div className="absolute right-0 mt-2 w-56 bg-[rgb(var(--card))] rounded-xl shadow-xl border border-[rgb(var(--border))] py-2 z-[9999] animate-fade-in">
                       <div className="px-4 py-2 border-b border-[rgb(var(--border))]">
                         <p className="font-semibold text-sm">
                           {user.username || "User"}
                         </p>
-                        <p className="text-xs text-[rgb(var(--muted-foreground))]">
+                        <p className="text-xs text-[rgb(var(--muted-foreground))] truncate">
                           {user.email || ""}
                         </p>
                       </div>
 
-                      {protectedNavItems.map((item) => {
+                      {protectedMenuItems.map((item) => {
                         const Icon = item.icon;
                         const active = isActive(item.href);
                         return (
@@ -306,7 +260,7 @@ const Header = memo(() => {
 
                       <button
                         onClick={handleLogoutClick}
-                        className="flex items-center gap-3 px-4 py-2 hover:bg-red-50 dark:hover:bg-red-950/50 transition-all duration-200 hover:scale-95 text-sm text-red-500 w-full"
+                        className="flex items-center gap-3 px-4 py-2 hover:bg-red-50 dark:hover:bg-red-950/50 transition-all duration-200 hover:scale-95 text-sm text-red-500 w-full border-t border-[rgb(var(--border))] mt-1 pt-2"
                       >
                         <LogOut className="w-4 h-4" /> Sign Out
                       </button>
@@ -332,6 +286,7 @@ const Header = memo(() => {
                 </div>
               )}
 
+              {/* ===== Mobile Menu Button (Hamburger) ===== */}
               <button
                 onClick={toggleMenu}
                 className="lg:hidden p-1.5 md:p-2 rounded-lg hover:bg-[rgb(var(--muted))] transition-all duration-200 hover:scale-95 relative z-[9999]"
@@ -369,7 +324,8 @@ const Header = memo(() => {
               </button>
             </div>
 
-            <nav className="p-4 space-y-1 text-[rgb(var(--foreground))]">
+            <nav className="p-4 space-y-1 text-[rgb(var(--foreground))] overflow-y-auto max-h-[calc(100vh-64px)]">
+              {/* ===== Public Navigation ===== */}
               {navItems.map((item) => {
                 const Icon = item.icon;
                 const active = isActive(item.href);
@@ -393,47 +349,41 @@ const Header = memo(() => {
                 );
               })}
 
-              <Link
-                href="/dashboard"
-                onClick={handleDashboardClick}
-                className={`
-                  flex items-center gap-4 px-4 py-3 rounded-lg transition-all duration-200 hover:scale-95 font-medium
-                  ${
-                    isActive("/dashboard")
-                      ? "bg-primary-500/10 text-primary-500 shadow-sm ring-1 ring-primary-500/20"
-                      : "hover:bg-[rgb(var(--muted))]"
-                  }
-                `}
-              >
-                <LayoutDashboard className="w-5 h-5 text-primary-500 flex-shrink-0" />
-                <span>Dashboard</span>
-              </Link>
+              {/* ===== Protected Items (only when logged in) ===== */}
+              {user && (
+                <>
+                  <div className="border-t border-[rgb(var(--border))] my-3 pt-3">
+                    <p className="text-xs text-[rgb(var(--muted-foreground))] px-4 mb-2">
+                      Account
+                    </p>
+                    {protectedMenuItems.map((item) => {
+                      const Icon = item.icon;
+                      const active = isActive(item.href);
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          className={`
+                            flex items-center gap-4 px-4 py-3 rounded-lg transition-all duration-200 hover:scale-95 font-medium
+                            ${
+                              active
+                                ? "bg-primary-500/10 text-primary-500 shadow-sm ring-1 ring-primary-500/20"
+                                : "hover:bg-[rgb(var(--muted))]"
+                            }
+                          `}
+                          onClick={toggleMenu}
+                        >
+                          <Icon className="w-5 h-5 flex-shrink-0 text-primary-500" />
+                          <span>{item.label}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
 
-              {user &&
-                protectedNavItems.slice(1).map((item) => {
-                  const Icon = item.icon;
-                  const active = isActive(item.href);
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className={`
-                        flex items-center gap-4 px-4 py-3 rounded-lg transition-all duration-200 hover:scale-95 font-medium
-                        ${
-                          active
-                            ? "bg-primary-500/10 text-primary-500 shadow-sm ring-1 ring-primary-500/20"
-                            : "hover:bg-[rgb(var(--muted))]"
-                        }
-                      `}
-                      onClick={toggleMenu}
-                    >
-                      <Icon className="w-5 h-5 text-primary-500 flex-shrink-0" />
-                      <span>{item.label}</span>
-                    </Link>
-                  );
-                })}
-
-              <div className="border-t border-[rgb(var(--border))] my-4 pt-4">
+              {/* ===== Auth Actions ===== */}
+              <div className="border-t border-[rgb(var(--border))] my-3 pt-3">
                 {user ? (
                   <button
                     onClick={() => {
@@ -446,7 +396,7 @@ const Header = memo(() => {
                     <span>Sign Out</span>
                   </button>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-2 px-4">
                     <Link
                       href="/auth/login"
                       onClick={toggleMenu}
