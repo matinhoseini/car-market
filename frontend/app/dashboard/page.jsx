@@ -57,7 +57,6 @@ export default function DashboardPage() {
     () => ({
       vehicles: myCars.length,
       favorites: favorites.length,
-      orders: 0,
       messages: unreadCount,
     }),
     [myCars.length, favorites.length, unreadCount],
@@ -123,7 +122,6 @@ export default function DashboardPage() {
       const data = await chatService.getConversations();
       setConversations(data || []);
 
-      // محاسبه تعداد پیام‌های خوانده نشده
       const totalUnread = (data || []).reduce(
         (sum, conv) => sum + (conv.unread_count || 0),
         0,
@@ -238,15 +236,6 @@ export default function DashboardPage() {
         borderColor: "hover:border-green-500",
         badge: unreadCount > 0 ? unreadCount : null,
       },
-      {
-        href: "/dashboard/orders",
-        icon: ShoppingBag,
-        iconColor: "text-purple-500",
-        bgColor: "bg-purple-500/10",
-        label: "Orders",
-        value: stats.orders,
-        borderColor: "hover:border-purple-500",
-      },
     ],
     [stats, unreadCount],
   );
@@ -330,7 +319,7 @@ export default function DashboardPage() {
         </div>
 
         {/* ===== Stats ===== */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
           {statsCards.map((stat, index) => {
             const Icon = stat.icon;
             return (
@@ -532,7 +521,7 @@ export default function DashboardPage() {
         </div>
 
         {/* ===== Quick Actions ===== */}
-        <div className="mt-8 grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Link href="/dashboard/add-vehicle">
             <button className="btn-primary w-full">
               <PlusCircle className="w-4 h-4 mr-2" />
@@ -548,12 +537,6 @@ export default function DashboardPage() {
                   {unreadCount}
                 </span>
               )}
-            </button>
-          </Link>
-          <Link href="/dashboard/profile">
-            <button className="btn-outline w-full">
-              <Settings className="w-4 h-4 mr-2" />
-              Edit Profile
             </button>
           </Link>
           <Link href="/dashboard/favorites">
