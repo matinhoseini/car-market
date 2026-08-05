@@ -1,15 +1,25 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { useConversations } from "../../../hooks/useConversations";
 import ChatList from "../../../components/chat/ChatList";
 import DashboardLayout from "../../../components/dashboard/DashboardLayout";
 
 const MessagesPage = () => {
+  const router = useRouter();
   const { data: conversations, isLoading, error } = useConversations();
 
   // ============================================
-  // 🎨 Render
+  // Handle back button
+  // ============================================
+  const handleBack = () => {
+    router.back();
+  };
+
+  // ============================================
+  // Render
   // ============================================
   if (isLoading) {
     return (
@@ -39,12 +49,21 @@ const MessagesPage = () => {
   return (
     <DashboardLayout>
       <div className="max-w-4xl mx-auto">
-        {/* ===== Header ===== */}
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold">📩 Messages</h1>
-          <span className="text-sm text-[rgb(var(--muted-foreground))]">
-            {conversations?.length || 0} conversations
-          </span>
+        {/* ===== Header with Back Button ===== */}
+        <div className="flex items-center gap-3 mb-6">
+          <button
+            onClick={handleBack}
+            className="p-2 rounded-lg hover:bg-[rgb(var(--muted))] transition-all duration-200 hover:scale-95"
+            aria-label="Go back"
+          >
+            <ArrowLeft className="w-5 h-5 text-[rgb(var(--foreground))]" />
+          </button>
+          <div>
+            <h1 className="text-2xl font-bold">📩 Messages</h1>
+            <p className="text-sm text-[rgb(var(--muted-foreground))]">
+              {conversations?.length || 0} conversations
+            </p>
+          </div>
         </div>
 
         {/* ===== Chat List ===== */}
