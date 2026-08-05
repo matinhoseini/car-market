@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
@@ -12,7 +13,7 @@ const MessagesPage = () => {
   const { data: conversations, isLoading, error } = useConversations();
 
   // ============================================
-  // Handle back button
+  // Handle back button - go to previous page
   // ============================================
   const handleBack = () => {
     router.back();

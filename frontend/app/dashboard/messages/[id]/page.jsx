@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { useConversations } from "../../../../hooks/useConversations";
 import ChatWindow from "../../../../components/chat/ChatWindow";
 import DashboardLayout from "../../../../components/dashboard/DashboardLayout";
@@ -9,16 +11,39 @@ import DashboardLayout from "../../../../components/dashboard/DashboardLayout";
 const ChatPage = () => {
   const router = useRouter();
   const params = useParams();
-  const conversationId = parseInt(params.id); // ✅ گرفتن id از params
+  const conversationId = parseInt(params.id);
 
   // ============================================
-  // 📋 Get conversation details
+  // Replace chat page in history with messages page
+  // ============================================
+  useEffect(() => {
+    if (conversationId) {
+      // Replace the current URL (chat) with messages page in history
+      // This way, when user clicks back from messages, they go to previous page
+      window.history.replaceState(
+        { ...window.history.state, url: "/dashboard/messages" },
+        "",
+        "/dashboard/messages",
+      );
+    }
+  }, [conversationId]);
+
+  // ============================================
+  // Handle back button - go to previous page before messages
+  // ============================================
+  const handleBack = () => {
+    // Go back two steps: chat → messages → previous page
+    router.back();
+  };
+
+  // ============================================
+  // Get conversation details
   // ============================================
   const { data: conversations, isLoading } = useConversations();
   const conversation = conversations?.find((c) => c.id === conversationId);
 
   // ============================================
-  // 🎨 Render
+  // Render
   // ============================================
   if (isLoading) {
     return (
@@ -56,7 +81,7 @@ const ChatPage = () => {
     );
   }
 
-  // Extract other user (the one who is not current user)
+  // Extract other user
   const otherUser = conversation.seller_username
     ? { username: conversation.seller_username }
     : { username: conversation.buyer_username };
@@ -69,7 +94,18 @@ const ChatPage = () => {
 
   return (
     <DashboardLayout>
-      <div className="h-[calc(100vh-200px)] bg-[rgb(var(--background))] rounded-xl border border-[rgb(var(--border))] overflow-hidden">
+      <div className="h-[calc(100vh-200px)] bg-[rgb(var(--background))] rounded-xl border border-[rgb(var(--border))] overflow-hidden relative">
+        {/* ===== Back Button inside chat ===== */}
+        <div className="absolute top-4 left-4 z-10">
+          <button
+            onClick={handleBack}
+            className="p-2 bg-[rgb(var(--card))] rounded-full shadow-lg hover:bg-[rgb(var(--muted))] transition-all duration-200 hover:scale-95 border border-[rgb(var(--border))]"
+            aria-label="Go back"
+          >
+            <ArrowLeft className="w-5 h-5 text-[rgb(var(--foreground))]" />
+          </button>
+        </div>
+
         <ChatWindow
           conversationId={conversationId}
           otherUser={otherUser}
