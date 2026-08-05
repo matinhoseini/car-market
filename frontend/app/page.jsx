@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -16,176 +16,379 @@ import {
   Gauge,
   Fuel,
   Heart,
-  ChevronDown,
+  Star,
   X,
+  SlidersHorizontal,
 } from "lucide-react";
 import { vehiclesService } from "../services/vehicles.service";
 import { formatPrice, formatMileage } from "../helpers/format";
+import toast from "react-hot-toast";
+
+// ============================================
+// 📊 Data
+// ============================================
+const COUNTRIES = [
+  {
+    value: "germany",
+    label: "Germany",
+    cities: [
+      "Berlin",
+      "Munich",
+      "Hamburg",
+      "Frankfurt",
+      "Cologne",
+      "Stuttgart",
+      "Dusseldorf",
+      "Dortmund",
+      "Essen",
+      "Leipzig",
+    ],
+  },
+  {
+    value: "uk",
+    label: "United Kingdom",
+    cities: [
+      "London",
+      "Manchester",
+      "Birmingham",
+      "Liverpool",
+      "Edinburgh",
+      "Glasgow",
+      "Bristol",
+      "Sheffield",
+      "Leeds",
+      "Newcastle",
+    ],
+  },
+  {
+    value: "france",
+    label: "France",
+    cities: [
+      "Paris",
+      "Marseille",
+      "Lyon",
+      "Toulouse",
+      "Nice",
+      "Nantes",
+      "Strasbourg",
+      "Montpellier",
+      "Bordeaux",
+      "Lille",
+    ],
+  },
+  {
+    value: "italy",
+    label: "Italy",
+    cities: [
+      "Rome",
+      "Milan",
+      "Naples",
+      "Turin",
+      "Florence",
+      "Venice",
+      "Bologna",
+      "Genoa",
+      "Palermo",
+      "Verona",
+    ],
+  },
+  {
+    value: "spain",
+    label: "Spain",
+    cities: [
+      "Madrid",
+      "Barcelona",
+      "Valencia",
+      "Seville",
+      "Zaragoza",
+      "Malaga",
+      "Murcia",
+      "Palma",
+      "Bilbao",
+      "Alicante",
+    ],
+  },
+  {
+    value: "netherlands",
+    label: "Netherlands",
+    cities: [
+      "Amsterdam",
+      "Rotterdam",
+      "Utrecht",
+      "The Hague",
+      "Eindhoven",
+      "Tilburg",
+      "Groningen",
+      "Almere",
+      "Breda",
+      "Nijmegen",
+    ],
+  },
+  {
+    value: "switzerland",
+    label: "Switzerland",
+    cities: [
+      "Zurich",
+      "Geneva",
+      "Basel",
+      "Bern",
+      "Lausanne",
+      "Winterthur",
+      "St. Gallen",
+      "Lucerne",
+      "Biel",
+      "Thun",
+    ],
+  },
+  {
+    value: "sweden",
+    label: "Sweden",
+    cities: [
+      "Stockholm",
+      "Gothenburg",
+      "Malmo",
+      "Uppsala",
+      "Vasteras",
+      "Orebro",
+      "Linkoping",
+      "Helsingborg",
+      "Jonkoping",
+      "Norrkoping",
+    ],
+  },
+  {
+    value: "norway",
+    label: "Norway",
+    cities: [
+      "Oslo",
+      "Bergen",
+      "Trondheim",
+      "Stavanger",
+      "Drammen",
+      "Fredrikstad",
+      "Kristiansand",
+      "Sandnes",
+      "Tromso",
+      "Sarpsborg",
+    ],
+  },
+  {
+    value: "denmark",
+    label: "Denmark",
+    cities: [
+      "Copenhagen",
+      "Aarhus",
+      "Odense",
+      "Aalborg",
+      "Esbjerg",
+      "Randers",
+      "Kolding",
+      "Horsens",
+      "Vejle",
+      "Roskilde",
+    ],
+  },
+  {
+    value: "belgium",
+    label: "Belgium",
+    cities: [
+      "Brussels",
+      "Antwerp",
+      "Ghent",
+      "Charleroi",
+      "Liege",
+      "Bruges",
+      "Namur",
+      "Leuven",
+      "Mons",
+      "Mechelen",
+    ],
+  },
+  {
+    value: "austria",
+    label: "Austria",
+    cities: [
+      "Vienna",
+      "Graz",
+      "Linz",
+      "Salzburg",
+      "Innsbruck",
+      "Klagenfurt",
+      "Villach",
+      "Wels",
+      "Sankt Polten",
+      "Dornbirn",
+    ],
+  },
+  {
+    value: "usa",
+    label: "USA",
+    cities: [
+      "New York",
+      "Los Angeles",
+      "Chicago",
+      "Houston",
+      "Phoenix",
+      "Philadelphia",
+      "San Antonio",
+      "San Diego",
+      "Dallas",
+      "Austin",
+      "San Francisco",
+      "Boston",
+      "Seattle",
+      "Denver",
+      "Washington DC",
+      "Miami",
+      "Atlanta",
+      "Portland",
+      "Detroit",
+      "Nashville",
+    ],
+  },
+];
+
+const PRICE_RANGES = [
+  { value: "5000", label: "Under $5,000" },
+  { value: "10000", label: "Under $10,000" },
+  { value: "20000", label: "Under $20,000" },
+  { value: "30000", label: "Under $30,000" },
+  { value: "50000", label: "Under $50,000" },
+  { value: "75000", label: "Under $75,000" },
+  { value: "100000", label: "Under $100,000" },
+  { value: "150000", label: "Under $150,000" },
+  { value: "200000", label: "Under $200,000" },
+];
+
+const FUEL_TYPES = [
+  { value: "petrol", label: "Petrol" },
+  { value: "diesel", label: "Diesel" },
+  { value: "electric", label: "Electric" },
+  { value: "hybrid", label: "Hybrid" },
+  { value: "plug-in_hybrid", label: "Plug-in Hybrid" },
+  { value: "cng", label: "CNG" },
+  { value: "lpg", label: "LPG" },
+];
+
+const TRANSMISSION_TYPES = [
+  { value: "manual", label: "Manual" },
+  { value: "automatic", label: "Automatic" },
+  { value: "semi_automatic", label: "Semi-Automatic" },
+  { value: "cvt", label: "CVT" },
+];
 
 // ============================================
 // 🏠 Home Page
 // ============================================
 export default function HomePage() {
   const router = useRouter();
-  const [featuredVehicles, setFeaturedVehicles] = useState([]);
+  const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showFilters, setShowFilters] = useState(false);
+
+  // ===== Filter states =====
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCountry, setSelectedCountry] = useState("");
   const [selectedCity, setSelectedCity] = useState("");
   const [priceRange, setPriceRange] = useState("");
-  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
-
-  // ============================================
-  // Countries and Cities data (Europe + USA)
-  // ============================================
-  const countries = [
-    {
-      value: "germany",
-      label: "Germany",
-      cities: ["Berlin", "Munich", "Hamburg", "Frankfurt", "Cologne"],
-    },
-    {
-      value: "uk",
-      label: "United Kingdom",
-      cities: ["London", "Manchester", "Birmingham", "Liverpool", "Edinburgh"],
-    },
-    {
-      value: "france",
-      label: "France",
-      cities: ["Paris", "Marseille", "Lyon", "Toulouse", "Nice"],
-    },
-    {
-      value: "italy",
-      label: "Italy",
-      cities: ["Rome", "Milan", "Naples", "Turin", "Florence"],
-    },
-    {
-      value: "spain",
-      label: "Spain",
-      cities: ["Madrid", "Barcelona", "Valencia", "Seville", "Zaragoza"],
-    },
-    {
-      value: "netherlands",
-      label: "Netherlands",
-      cities: ["Amsterdam", "Rotterdam", "Utrecht", "The Hague", "Eindhoven"],
-    },
-    {
-      value: "switzerland",
-      label: "Switzerland",
-      cities: ["Zurich", "Geneva", "Basel", "Bern", "Lausanne"],
-    },
-    {
-      value: "sweden",
-      label: "Sweden",
-      cities: ["Stockholm", "Gothenburg", "Malmo", "Uppsala", "Vasteras"],
-    },
-    {
-      value: "norway",
-      label: "Norway",
-      cities: ["Oslo", "Bergen", "Trondheim", "Stavanger", "Drammen"],
-    },
-    {
-      value: "denmark",
-      label: "Denmark",
-      cities: ["Copenhagen", "Aarhus", "Odense", "Aalborg", "Esbjerg"],
-    },
-    {
-      value: "belgium",
-      label: "Belgium",
-      cities: ["Brussels", "Antwerp", "Ghent", "Charleroi", "Liege"],
-    },
-    {
-      value: "austria",
-      label: "Austria",
-      cities: ["Vienna", "Graz", "Linz", "Salzburg", "Innsbruck"],
-    },
-    {
-      value: "usa",
-      label: "USA",
-      cities: [
-        "New York",
-        "Los Angeles",
-        "Chicago",
-        "Houston",
-        "Phoenix",
-        "Philadelphia",
-        "San Antonio",
-        "San Diego",
-        "Dallas",
-        "Austin",
-      ],
-    },
-  ];
-
-  // ============================================
-  // Price ranges (with higher values)
-  // ============================================
-  const priceRanges = [
-    { value: "5000", label: "Under $5,000" },
-    { value: "10000", label: "Under $10,000" },
-    { value: "20000", label: "Under $20,000" },
-    { value: "30000", label: "Under $30,000" },
-    { value: "50000", label: "Under $50,000" },
-    { value: "75000", label: "Under $75,000" },
-    { value: "100000", label: "Under $100,000" },
-    { value: "150000", label: "Under $150,000" },
-    { value: "200000", label: "Under $200,000" },
-    { value: "300000", label: "Under $300,000" },
-    { value: "500000", label: "Under $500,000" },
-    { value: "1000000", label: "Under $1,000,000" },
-  ];
+  const [selectedFuel, setSelectedFuel] = useState("");
+  const [selectedTransmission, setSelectedTransmission] = useState("");
+  const [yearMin, setYearMin] = useState("");
+  const [yearMax, setYearMax] = useState("");
 
   // ============================================
   // Get cities based on selected country
   // ============================================
-  const getCities = () => {
-    const country = countries.find((c) => c.value === selectedCountry);
+  const getCities = useCallback(() => {
+    const country = COUNTRIES.find((c) => c.value === selectedCountry);
     return country ? country.cities : [];
-  };
+  }, [selectedCountry]);
 
   // ============================================
-  // Fetch featured vehicles
+  // Build query params
+  // ============================================
+  const buildQueryParams = useCallback(() => {
+    const params = new URLSearchParams();
+
+    if (searchQuery) params.append("search", searchQuery);
+    if (selectedCity) params.append("city", selectedCity);
+    if (priceRange) params.append("price_max", priceRange);
+    if (selectedFuel) params.append("fuel_type", selectedFuel);
+    if (selectedTransmission)
+      params.append("transmission", selectedTransmission);
+    if (yearMin) params.append("year_min", yearMin);
+    if (yearMax) params.append("year_max", yearMax);
+
+    params.append("limit", "6");
+    params.append("ordering", "-created_at");
+
+    return params;
+  }, [
+    searchQuery,
+    selectedCity,
+    priceRange,
+    selectedFuel,
+    selectedTransmission,
+    yearMin,
+    yearMax,
+  ]);
+
+  // ============================================
+  // Fetch vehicles
+  // ============================================
+  const fetchVehicles = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = buildQueryParams();
+      const data = await vehiclesService.getVehicles(params);
+      setVehicles(data.results || data || []);
+    } catch (error) {
+      console.error("Error fetching vehicles:", error);
+      toast.error("Failed to load vehicles");
+      setVehicles([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [buildQueryParams]);
+
+  // ============================================
+  // Initial fetch
   // ============================================
   useEffect(() => {
-    const fetchVehicles = async () => {
-      try {
-        const data = await vehiclesService.getVehicles({
-          limit: 6,
-          ordering: "-created_at",
-        });
-        setFeaturedVehicles(data.results || data || []);
-      } catch (error) {
-        console.error("Error fetching vehicles:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchVehicles();
-  }, []);
+  }, [fetchVehicles]);
 
   // ============================================
   // Handle search
   // ============================================
   const handleSearch = (e) => {
     e.preventDefault();
-    const params = new URLSearchParams();
-    if (searchQuery) params.append("search", searchQuery);
-    if (selectedCountry) params.append("country", selectedCountry);
-    if (selectedCity) params.append("city", selectedCity);
-    if (priceRange) params.append("price_max", priceRange);
-
+    const params = buildQueryParams();
     router.push(`/vehicles?${params.toString()}`);
   };
 
   // ============================================
-  // Clear filters
+  // Reset filters
   // ============================================
-  const clearFilters = () => {
+  const resetFilters = () => {
+    setSearchQuery("");
     setSelectedCountry("");
     setSelectedCity("");
     setPriceRange("");
-    setSearchQuery("");
+    setSelectedFuel("");
+    setSelectedTransmission("");
+    setYearMin("");
+    setYearMax("");
+    setShowFilters(false);
+    fetchVehicles();
+  };
+
+  // ============================================
+  // Apply filters locally
+  // ============================================
+  const applyFilters = () => {
+    setShowFilters(false);
+    fetchVehicles();
   };
 
   // ============================================
@@ -198,7 +401,7 @@ export default function HomePage() {
   ];
 
   // ============================================
-  // Features data
+  // Features
   // ============================================
   const features = [
     {
@@ -225,7 +428,7 @@ export default function HomePage() {
   ];
 
   // ============================================
-  // Testimonials data
+  // Testimonials
   // ============================================
   const testimonials = [
     {
@@ -251,12 +454,15 @@ export default function HomePage() {
     },
   ];
 
+  // ============================================
+  // Render
+  // ============================================
   return (
     <div className="min-h-screen bg-[rgb(var(--background))]">
       {/* ===== Hero Section ===== */}
       <section className="relative bg-gradient-to-r from-primary-500/20 to-accent-500/20 py-16 md:py-24">
         <div className="container-custom">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             {/* Left Side */}
             <div>
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold font-heading leading-tight">
@@ -269,7 +475,7 @@ export default function HomePage() {
               </p>
 
               {/* Stats */}
-              <div className="flex flex-wrap gap-8 mt-8">
+              <div className="flex gap-8 mt-8">
                 {stats.map((stat, index) => {
                   const Icon = stat.icon;
                   return (
@@ -307,131 +513,143 @@ export default function HomePage() {
             <div className="card p-6 md:p-8 shadow-xl">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-xl font-bold">🔍 Search Cars</h3>
-                {(selectedCountry ||
-                  selectedCity ||
-                  priceRange ||
-                  searchQuery) && (
-                  <button
-                    onClick={clearFilters}
-                    className="text-sm text-red-500 hover:text-red-600 flex items-center gap-1"
-                  >
-                    <X className="w-4 h-4" />
-                    Clear All
-                  </button>
-                )}
+                <button
+                  onClick={() => setShowFilters(!showFilters)}
+                  className="text-sm text-primary-500 hover:underline flex items-center gap-1"
+                >
+                  <SlidersHorizontal className="w-4 h-4" />
+                  Filters
+                </button>
               </div>
 
-              <form onSubmit={handleSearch} className="space-y-3">
+              <form onSubmit={handleSearch} className="space-y-4">
                 {/* Search Input */}
                 <input
                   type="text"
                   placeholder="Search by brand, model, or keyword..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full p-3 border border-[rgb(var(--border))] rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-[rgb(var(--background))] text-sm"
+                  className="w-full p-3 border border-[rgb(var(--border))] rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-[rgb(var(--background))]"
                 />
 
-                {/* Country & City - 2 columns with fixed height */}
+                {/* Basic Filters */}
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="relative">
-                    <select
-                      value={selectedCountry}
-                      onChange={(e) => {
-                        setSelectedCountry(e.target.value);
-                        setSelectedCity("");
-                      }}
-                      className="w-full p-3 pr-8 border border-[rgb(var(--border))] rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-[rgb(var(--background))] text-sm appearance-none"
-                      style={{ maxHeight: "48px" }}
-                    >
-                      <option value="">Select Country</option>
-                      {countries.map((country) => (
-                        <option key={country.value} value={country.value}>
-                          {country.label}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[rgb(var(--muted-foreground))] pointer-events-none" />
-                  </div>
-
-                  <div className="relative">
-                    <select
-                      value={selectedCity}
-                      onChange={(e) => setSelectedCity(e.target.value)}
-                      className="w-full p-3 pr-8 border border-[rgb(var(--border))] rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-[rgb(var(--background))] text-sm appearance-none disabled:opacity-50 disabled:cursor-not-allowed"
-                      disabled={!selectedCountry}
-                      style={{ maxHeight: "48px" }}
-                    >
-                      <option value="">Select City</option>
-                      {getCities().map((city) => (
-                        <option key={city} value={city}>
-                          {city}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[rgb(var(--muted-foreground))] pointer-events-none" />
-                  </div>
-                </div>
-
-                {/* Price Range - fixed height */}
-                <div className="relative">
                   <select
-                    value={priceRange}
-                    onChange={(e) => setPriceRange(e.target.value)}
-                    className="w-full p-3 pr-8 border border-[rgb(var(--border))] rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-[rgb(var(--background))] text-sm appearance-none"
-                    style={{ maxHeight: "48px" }}
+                    value={selectedCountry}
+                    onChange={(e) => {
+                      setSelectedCountry(e.target.value);
+                      setSelectedCity("");
+                    }}
+                    className="p-3 border border-[rgb(var(--border))] rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-[rgb(var(--background))]"
                   >
-                    <option value="">Select Price Range</option>
-                    {priceRanges.map((range) => (
-                      <option key={range.value} value={range.value}>
-                        {range.label}
+                    <option value="">Select Country</option>
+                    {COUNTRIES.map((country) => (
+                      <option key={country.value} value={country.value}>
+                        {country.label}
                       </option>
                     ))}
                   </select>
-                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[rgb(var(--muted-foreground))] pointer-events-none" />
+
+                  <select
+                    value={selectedCity}
+                    onChange={(e) => setSelectedCity(e.target.value)}
+                    className="p-3 border border-[rgb(var(--border))] rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-[rgb(var(--background))]"
+                    disabled={!selectedCountry}
+                  >
+                    <option value="">Select City</option>
+                    {getCities().map((city) => (
+                      <option key={city} value={city}>
+                        {city}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
-                {/* Selected filters tags */}
-                {(selectedCountry || selectedCity || priceRange) && (
-                  <div className="flex flex-wrap gap-2 pt-1">
-                    {selectedCountry && (
-                      <span className="inline-flex items-center gap-1 bg-primary-500/10 text-primary-500 text-xs px-2 py-1 rounded-full">
-                        {
-                          countries.find((c) => c.value === selectedCountry)
-                            ?.label
+                {/* Price Range */}
+                <select
+                  value={priceRange}
+                  onChange={(e) => setPriceRange(e.target.value)}
+                  className="w-full p-3 border border-[rgb(var(--border))] rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-[rgb(var(--background))]"
+                >
+                  <option value="">Select Price Range</option>
+                  {PRICE_RANGES.map((range) => (
+                    <option key={range.value} value={range.value}>
+                      {range.label}
+                    </option>
+                  ))}
+                </select>
+
+                {/* Advanced Filters (Collapsible) */}
+                {showFilters && (
+                  <div className="space-y-3 p-4 border border-[rgb(var(--border))] rounded-lg bg-[rgb(var(--muted))]">
+                    <div className="flex justify-between items-center">
+                      <span className="font-semibold text-sm">
+                        Advanced Filters
+                      </span>
+                      <button
+                        type="button"
+                        onClick={resetFilters}
+                        className="text-xs text-red-500 hover:underline flex items-center gap-1"
+                      >
+                        <X className="w-3 h-3" />
+                        Reset All
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <select
+                        value={selectedFuel}
+                        onChange={(e) => setSelectedFuel(e.target.value)}
+                        className="p-2 border border-[rgb(var(--border))] rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-[rgb(var(--background))] text-sm"
+                      >
+                        <option value="">Fuel Type</option>
+                        {FUEL_TYPES.map((fuel) => (
+                          <option key={fuel.value} value={fuel.value}>
+                            {fuel.label}
+                          </option>
+                        ))}
+                      </select>
+
+                      <select
+                        value={selectedTransmission}
+                        onChange={(e) =>
+                          setSelectedTransmission(e.target.value)
                         }
-                        <button
-                          type="button"
-                          onClick={() => setSelectedCountry("")}
-                          className="hover:text-red-500"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </span>
-                    )}
-                    {selectedCity && (
-                      <span className="inline-flex items-center gap-1 bg-primary-500/10 text-primary-500 text-xs px-2 py-1 rounded-full">
-                        {selectedCity}
-                        <button
-                          type="button"
-                          onClick={() => setSelectedCity("")}
-                          className="hover:text-red-500"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </span>
-                    )}
-                    {priceRange && (
-                      <span className="inline-flex items-center gap-1 bg-primary-500/10 text-primary-500 text-xs px-2 py-1 rounded-full">
-                        {priceRanges.find((p) => p.value === priceRange)?.label}
-                        <button
-                          type="button"
-                          onClick={() => setPriceRange("")}
-                          className="hover:text-red-500"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </span>
-                    )}
+                        className="p-2 border border-[rgb(var(--border))] rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-[rgb(var(--background))] text-sm"
+                      >
+                        <option value="">Transmission</option>
+                        {TRANSMISSION_TYPES.map((trans) => (
+                          <option key={trans.value} value={trans.value}>
+                            {trans.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <input
+                        type="number"
+                        placeholder="Year From"
+                        value={yearMin}
+                        onChange={(e) => setYearMin(e.target.value)}
+                        className="p-2 border border-[rgb(var(--border))] rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-[rgb(var(--background))] text-sm"
+                      />
+                      <input
+                        type="number"
+                        placeholder="Year To"
+                        value={yearMax}
+                        onChange={(e) => setYearMax(e.target.value)}
+                        className="p-2 border border-[rgb(var(--border))] rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-[rgb(var(--background))] text-sm"
+                      />
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={applyFilters}
+                      className="btn-primary w-full text-sm py-2"
+                    >
+                      Apply Filters
+                    </button>
                   </div>
                 )}
 
@@ -475,15 +693,23 @@ export default function HomePage() {
                 </div>
               ))}
             </div>
-          ) : featuredVehicles.length === 0 ? (
+          ) : vehicles.length === 0 ? (
             <div className="text-center py-12">
+              <p className="text-4xl mb-4">🚗</p>
+              <h3 className="text-xl font-semibold mb-2">No vehicles found</h3>
               <p className="text-[rgb(var(--muted-foreground))]">
-                No vehicles available at the moment.
+                Try adjusting your filters or search terms.
               </p>
+              <button
+                onClick={resetFilters}
+                className="text-primary-500 hover:underline mt-2"
+              >
+                Clear all filters
+              </button>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {featuredVehicles.map((vehicle) => (
+              {vehicles.map((vehicle) => (
                 <VehicleCard key={vehicle.id} vehicle={vehicle} />
               ))}
             </div>
@@ -544,27 +770,24 @@ export default function HomePage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {testimonials.map((testimonial, index) => {
-              const StarIcon = Star;
-              return (
-                <div key={index} className="card p-6">
-                  <div className="flex gap-1 text-yellow-500 mb-3">
-                    {[...Array(testimonial.rating)].map((_, i) => (
-                      <StarIcon key={i} className="w-4 h-4 fill-yellow-500" />
-                    ))}
-                  </div>
-                  <p className="text-[rgb(var(--foreground))]">
-                    "{testimonial.text}"
-                  </p>
-                  <div className="mt-4">
-                    <p className="font-semibold">{testimonial.name}</p>
-                    <p className="text-sm text-[rgb(var(--muted-foreground))]">
-                      {testimonial.role} • {testimonial.country}
-                    </p>
-                  </div>
+            {testimonials.map((testimonial, index) => (
+              <div key={index} className="card p-6">
+                <div className="flex gap-1 text-yellow-500 mb-3">
+                  {[...Array(testimonial.rating)].map((_, i) => (
+                    <Star key={i} className="w-4 h-4 fill-yellow-500" />
+                  ))}
                 </div>
-              );
-            })}
+                <p className="text-[rgb(var(--foreground))]">
+                  "{testimonial.text}"
+                </p>
+                <div className="mt-4">
+                  <p className="font-semibold">{testimonial.name}</p>
+                  <p className="text-sm text-[rgb(var(--muted-foreground))]">
+                    {testimonial.role} • {testimonial.country}
+                  </p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -603,13 +826,72 @@ export default function HomePage() {
 const VehicleCard = ({ vehicle }) => {
   const router = useRouter();
 
-  const handleClick = () => {
-    router.push(`/vehicles/${vehicle.id}`);
+  const getCountry = () => {
+    if (vehicle.country) return vehicle.country;
+    const city = vehicle.city || "";
+    const europeanCities = [
+      "Berlin",
+      "Munich",
+      "Hamburg",
+      "Frankfurt",
+      "Cologne",
+      "London",
+      "Manchester",
+      "Birmingham",
+      "Paris",
+      "Marseille",
+      "Lyon",
+      "Rome",
+      "Milan",
+      "Naples",
+      "Madrid",
+      "Barcelona",
+      "Valencia",
+      "Amsterdam",
+      "Rotterdam",
+      "Zurich",
+      "Geneva",
+      "Stockholm",
+      "Gothenburg",
+      "Oslo",
+      "Bergen",
+      "Copenhagen",
+      "Aarhus",
+      "Brussels",
+      "Antwerp",
+      "Vienna",
+      "Graz",
+    ];
+    const usCities = [
+      "New York",
+      "Los Angeles",
+      "Chicago",
+      "Houston",
+      "Phoenix",
+      "Philadelphia",
+      "San Antonio",
+      "San Diego",
+      "Dallas",
+      "Austin",
+      "San Francisco",
+      "Boston",
+      "Seattle",
+      "Denver",
+      "Washington DC",
+      "Miami",
+      "Atlanta",
+      "Portland",
+      "Detroit",
+    ];
+
+    if (europeanCities.some((c) => city.includes(c))) return "Europe";
+    if (usCities.some((c) => city.includes(c))) return "USA";
+    return "International";
   };
 
   return (
     <div
-      onClick={handleClick}
+      onClick={() => router.push(`/vehicles/${vehicle.id}`)}
       className="card overflow-hidden cursor-pointer hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
     >
       <div className="relative h-48 bg-[rgb(var(--muted))]">
@@ -628,11 +910,9 @@ const VehicleCard = ({ vehicle }) => {
         <div className="absolute top-2 right-2">
           <Heart className="w-5 h-5 text-white/70 hover:text-red-500 transition-colors cursor-pointer" />
         </div>
-        {vehicle.country && (
-          <div className="absolute top-2 left-2 bg-black/60 text-white text-xs px-2 py-1 rounded">
-            {vehicle.country}
-          </div>
-        )}
+        <div className="absolute top-2 left-2 bg-black/60 text-white text-xs px-2 py-1 rounded">
+          {getCountry()}
+        </div>
       </div>
 
       <div className="p-4">
@@ -640,7 +920,7 @@ const VehicleCard = ({ vehicle }) => {
           {vehicle.title || `${vehicle.brand} ${vehicle.model}`}
         </h3>
         <p className="text-xl font-bold text-primary-500 mt-1">
-          {formatPrice(vehicle.price)}
+          ${Number(vehicle.price).toLocaleString()}
         </p>
 
         <div className="grid grid-cols-2 gap-2 mt-3 text-sm text-[rgb(var(--muted-foreground))]">
@@ -650,7 +930,11 @@ const VehicleCard = ({ vehicle }) => {
           </div>
           <div className="flex items-center gap-1">
             <Gauge className="w-3.5 h-3.5" />
-            <span>{formatMileage(vehicle.mileage)} km</span>
+            <span>
+              {vehicle.mileage
+                ? `${Number(vehicle.mileage).toLocaleString()} km`
+                : "N/A"}
+            </span>
           </div>
           <div className="flex items-center gap-1">
             <Fuel className="w-3.5 h-3.5" />
@@ -658,13 +942,13 @@ const VehicleCard = ({ vehicle }) => {
           </div>
           <div className="flex items-center gap-1">
             <MapPin className="w-3.5 h-3.5" />
-            <span>{vehicle.city || vehicle.country || "N/A"}</span>
+            <span>{vehicle.city || "N/A"}</span>
           </div>
         </div>
 
         <div className="flex items-center justify-between mt-4 pt-3 border-t border-[rgb(var(--border))]">
-          <span className="text-xs text-[rgb(var(--muted-foreground))]">
-            {vehicle.status === "active" ? (
+          <span className="text-xs">
+            {vehicle.status === "active" || vehicle.is_available ? (
               <span className="text-green-500">✅ Available</span>
             ) : (
               <span className="text-red-500">❌ Sold</span>
@@ -677,11 +961,4 @@ const VehicleCard = ({ vehicle }) => {
       </div>
     </div>
   );
-};
-
-// ============================================
-// ⭐ Star Component for Testimonials
-// ============================================
-const Star = ({ className }) => {
-  return <span className={className}>★</span>;
 };
