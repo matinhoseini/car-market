@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
@@ -11,12 +11,26 @@ import DashboardLayout from "../../../components/dashboard/DashboardLayout";
 const MessagesPage = () => {
   const router = useRouter();
   const { data: conversations, isLoading, error } = useConversations();
+  const [canGoBack, setCanGoBack] = useState(false);
 
   // ============================================
-  // Handle back button - go to previous page
+  // Check if there is a previous page in history
+  // ============================================
+  useEffect(() => {
+    if (window.history.length > 1) {
+      setCanGoBack(true);
+    }
+  }, []);
+
+  // ============================================
+  // Handle back button - go to previous page or dashboard
   // ============================================
   const handleBack = () => {
-    router.back();
+    if (canGoBack) {
+      router.back();
+    } else {
+      router.push("/dashboard");
+    }
   };
 
   // ============================================

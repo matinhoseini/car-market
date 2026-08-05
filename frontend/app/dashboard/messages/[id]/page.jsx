@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
@@ -12,14 +12,23 @@ const ChatPage = () => {
   const router = useRouter();
   const params = useParams();
   const conversationId = parseInt(params.id);
+  const [canGoBack, setCanGoBack] = useState(false);
+
+  // ============================================
+  // Check if there is a previous page in history
+  // ============================================
+  useEffect(() => {
+    // Check if there's a previous page in browser history
+    if (window.history.length > 1) {
+      setCanGoBack(true);
+    }
+  }, []);
 
   // ============================================
   // Replace chat page in history with messages page
   // ============================================
   useEffect(() => {
     if (conversationId) {
-      // Replace the current URL (chat) with messages page in history
-      // This way, when user clicks back from messages, they go to previous page
       window.history.replaceState(
         { ...window.history.state, url: "/dashboard/messages" },
         "",
@@ -29,11 +38,16 @@ const ChatPage = () => {
   }, [conversationId]);
 
   // ============================================
-  // Handle back button - go to previous page before messages
+  // Handle back button - go to previous page or dashboard
   // ============================================
   const handleBack = () => {
-    // Go back two steps: chat → messages → previous page
-    router.back();
+    if (canGoBack) {
+      // If there is a previous page, go back
+      router.back();
+    } else {
+      // If no previous page, go to dashboard
+      router.push("/dashboard");
+    }
   };
 
   // ============================================
