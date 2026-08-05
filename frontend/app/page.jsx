@@ -307,5 +307,133 @@ export default function HomePage() {
         </div>
       </section>
     </div>
+    // ============================================
+// 🚗 Featured Vehicles Section
+// ============================================
+      {/* ===== Featured Vehicles ===== */}
+      <section className="py-16">
+        <div className="container-custom">
+          <div className="flex justify-between items-center mb-8">
+            <div>
+              <h2 className="text-3xl font-bold font-heading">🚗 Featured Vehicles</h2>
+              <p className="text-[rgb(var(--muted-foreground))] mt-1">
+                The latest and most popular cars from Europe and USA
+              </p>
+            </div>
+            <Link href="/vehicles">
+              <button className="text-primary-500 hover:underline flex items-center gap-1">
+                View All
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </Link>
+          </div>
+
+          {loading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div key={i} className="card p-4 animate-pulse">
+                  <div className="h-48 bg-[rgb(var(--muted))] rounded-lg"></div>
+                  <div className="h-4 bg-[rgb(var(--muted))] rounded mt-3 w-3/4"></div>
+                  <div className="h-4 bg-[rgb(var(--muted))] rounded mt-2 w-1/2"></div>
+                </div>
+              ))}
+            </div>
+          ) : featuredVehicles.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-[rgb(var(--muted-foreground))]">
+                No vehicles available at the moment.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {featuredVehicles.map((vehicle) => (
+                <VehicleCard key={vehicle.id} vehicle={vehicle} />
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+// ============================================
+// 🚗 VehicleCard Component
+// ============================================
+const VehicleCard = ({ vehicle }) => {
+  const router = useRouter();
+
+  const handleClick = () => {
+    router.push(`/vehicles/${vehicle.id}`);
+  };
+
+  return (
+    <div
+      onClick={handleClick}
+      className="card overflow-hidden cursor-pointer hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
+    >
+      <div className="relative h-48 bg-[rgb(var(--muted))]">
+        {vehicle.image ? (
+          <Image
+            src={vehicle.image}
+            alt={vehicle.title || vehicle.model}
+            fill
+            className="object-cover"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-4xl text-[rgb(var(--muted-foreground))]">
+            🚗
+          </div>
+        )}
+        <div className="absolute top-2 right-2">
+          <Heart className="w-5 h-5 text-white/70 hover:text-red-500 transition-colors cursor-pointer" />
+        </div>
+        {vehicle.country && (
+          <div className="absolute top-2 left-2 bg-black/60 text-white text-xs px-2 py-1 rounded">
+            {vehicle.country}
+          </div>
+        )}
+      </div>
+
+      <div className="p-4">
+        <h3 className="font-semibold text-lg truncate">
+          {vehicle.title || `${vehicle.brand} ${vehicle.model}`}
+        </h3>
+        <p className="text-xl font-bold text-primary-500 mt-1">
+          {formatPrice(vehicle.price)}
+        </p>
+
+        <div className="grid grid-cols-2 gap-2 mt-3 text-sm text-[rgb(var(--muted-foreground))]">
+          <div className="flex items-center gap-1">
+            <Calendar className="w-3.5 h-3.5" />
+            <span>{vehicle.year || "N/A"}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <Gauge className="w-3.5 h-3.5" />
+            <span>{formatMileage(vehicle.mileage)} km</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <Fuel className="w-3.5 h-3.5" />
+            <span>{vehicle.fuel_type || "N/A"}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <MapPin className="w-3.5 h-3.5" />
+            <span>{vehicle.city || vehicle.country || "N/A"}</span>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between mt-4 pt-3 border-t border-[rgb(var(--border))]">
+          <span className="text-xs text-[rgb(var(--muted-foreground))]">
+            {vehicle.status === "active" ? (
+              <span className="text-green-500">✅ Available</span>
+            ) : (
+              <span className="text-red-500">❌ Sold</span>
+            )}
+          </span>
+          <button className="text-primary-500 hover:text-primary-600 transition-colors">
+            View Details →
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
   );
 }
