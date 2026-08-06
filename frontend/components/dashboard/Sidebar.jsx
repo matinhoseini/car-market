@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link"; // ✅ این خط را اضافه کنید
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Home,
