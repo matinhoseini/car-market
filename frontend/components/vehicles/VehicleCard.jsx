@@ -1,4 +1,3 @@
-// components/vehicles/VehicleCard.jsx
 "use client";
 
 import Link from "next/link";
@@ -21,6 +20,7 @@ import { formatPrice, formatMileage } from "@/helpers/format";
 const VehicleCard = memo(
   ({ car, showActions = false, onActionClick = null }) => {
     const [imgError, setImgError] = useState(false);
+    const [imageLoaded, setImageLoaded] = useState(false);
 
     // ===== Memoized values =====
     const imageUrl = useMemo(() => getFirstImage(car), [car]);
@@ -48,6 +48,10 @@ const VehicleCard = memo(
 
     const handleImageError = useCallback(() => {
       setImgError(true);
+    }, []);
+
+    const handleImageLoad = useCallback(() => {
+      setImageLoaded(true);
     }, []);
 
     const handleActionClick = useCallback(
@@ -83,16 +87,36 @@ const VehicleCard = memo(
         >
           <div className="relative w-full aspect-[16/10] bg-gray-100 overflow-hidden">
             {hasImage ? (
-              <Image
-                src={imageUrl}
-                alt={car.title || "Car"}
-                fill
-                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                className="object-cover transition-transform duration-500 group-hover:scale-105"
-                onError={handleImageError}
-                loading="lazy"
-                quality={80}
-              />
+              <>
+                {/* ===== Blur Placeholder ===== */}
+                <div
+                  className={`absolute inset-0 bg-gray-200 transition-opacity duration-500 ${
+                    imageLoaded ? "opacity-0" : "opacity-100"
+                  }`}
+                >
+                  <div className="w-full h-full animate-pulse bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200" />
+                </div>
+
+                {/* ===== Optimized Image ===== */}
+                <Image
+                  src={imageUrl}
+                  alt={car.title || "Car"}
+                  fill
+                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                  className={`
+                    object-cover 
+                    transition-all duration-700 
+                    group-hover:scale-105 
+                    ${imageLoaded ? "opacity-100 scale-100" : "opacity-0 scale-105"}
+                  `}
+                  onError={handleImageError}
+                  onLoad={handleImageLoad}
+                  loading="lazy"
+                  quality={85}
+                  placeholder="blur"
+                  blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCwAA8A/9k="
+                />
+              </>
             ) : (
               <div className="w-full h-full flex items-center justify-center text-5xl text-gray-400 bg-gray-100">
                 🚗
