@@ -22,7 +22,7 @@ export const metadata = {
   title: "CarMarket - Find Your Dream Car in Europe & USA",
   description:
     "Browse thousands of new and used cars from trusted sellers across Europe and USA. Buy or sell your car easily.",
-  keywords: "car market, buy car, sell car, europe cars, usa cars,二手车",
+  keywords: "car market, buy car, sell car, europe cars, usa cars",
   openGraph: {
     title: "CarMarket - Find Your Dream Car",
     description:
@@ -44,13 +44,34 @@ export const metadata = {
 // ============================================
 async function getFeaturedVehicles() {
   try {
+    console.log("🔄 Fetching featured vehicles...");
     const data = await vehiclesService.getAllCars({
       limit: 3,
       ordering: "-created_at",
     });
-    return data.results || data || [];
+
+    console.log("✅ Raw API response:", data);
+
+    // Handle different response formats
+    let vehicles = [];
+    if (data && data.results) {
+      vehicles = data.results;
+    } else if (Array.isArray(data)) {
+      vehicles = data;
+    } else if (data && typeof data === "object") {
+      // If it's a single object, wrap it in array
+      vehicles = [data];
+    }
+
+    console.log(`✅ Found ${vehicles.length} vehicles`);
+
+    // Validate each vehicle has required fields
+    const validVehicles = vehicles.filter((v) => v && typeof v === "object");
+    console.log(`✅ ${validVehicles.length} valid vehicles after filtering`);
+
+    return validVehicles;
   } catch (error) {
-    console.error("Error fetching vehicles:", error);
+    console.error("❌ Error fetching vehicles:", error);
     return [];
   }
 }
@@ -61,6 +82,12 @@ async function getFeaturedVehicles() {
 export default async function HomePage() {
   // Fetch data on the server side
   const featuredVehicles = await getFeaturedVehicles();
+
+  // Log the final data structure
+  console.log(
+    "📦 Final featuredVehicles:",
+    JSON.stringify(featuredVehicles, null, 2),
+  );
 
   // ============================================
   // Countries and Cities data (Europe + USA)
@@ -303,18 +330,49 @@ export default async function HomePage() {
             </Link>
           </div>
 
-          {featuredVehicles.length === 0 ? (
+          {!featuredVehicles || featuredVehicles.length === 0 ? (
             <div className="text-center py-12">
               <div className="text-4xl mb-4">🚗</div>
               <p className="text-[rgb(var(--muted-foreground))]">
                 No vehicles available at the moment.
               </p>
+              <p className="text-xs text-[rgb(var(--muted-foreground))] mt-2">
+                Try adding some vehicles to get started.
+              </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {featuredVehicles.map((vehicle) => (
-                <VehicleCard key={vehicle.id} vehicle={vehicle} />
-              ))}
+              {featuredVehicles.map((vehicle, index) => {
+                // Log each vehicle to debug
+                console.log(`Vehicle ${index + 1}:`, vehicle);
+
+                // Transform vehicle data to match the expected format
+                // The VehicleCard expects certain fields
+                const carData = {
+                  id: vehicle.id,
+                  title:
+                    vehicle.title ||
+                    `${vehicle.brand || "Unknown"} ${vehicle.model || "Car"}`,
+                  price: vehicle.price || 0,
+                  year: vehicle.year || "N/A",
+                  mileage: vehicle.mileage || 0,
+                  fuel_type: vehicle.fuel_type || "N/A",
+                  gearbox: vehicle.gearbox || "N/A",
+                  city: vehicle.city || vehicle.country || "Unknown",
+                  country: vehicle.country || null,
+                  status: vehicle.status || "active",
+                  brand: vehicle.brand || "Unknown",
+                  model: vehicle.model || "Car",
+                  is_featured: vehicle.is_featured || false,
+                  is_favorite: vehicle.is_favorite || false,
+                  owner_username: vehicle.owner_username || null,
+                  images:
+                    vehicle.images || (vehicle.image ? [vehicle.image] : []),
+                  image: vehicle.image || null,
+                };
+
+                return <VehicleCard key={carData.id || index} car={carData} />;
+              })}
             </div>
           )}
         </div>
