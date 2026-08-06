@@ -45,9 +45,11 @@ export const metadata = {
 async function getFeaturedVehicles() {
   try {
     console.log("🔄 Fetching featured vehicles...");
+
+    // ✅ فقط ۳ ماشین دریافت میشود
     const data = await vehiclesService.getAllCars({
-      limit: 3,
-      ordering: "-created_at",
+      limit: 3, // فقط ۳ تا
+      ordering: "-created_at", // جدیدترین‌ها
     });
 
     console.log("✅ Raw API response:", data);
@@ -59,14 +61,20 @@ async function getFeaturedVehicles() {
     } else if (Array.isArray(data)) {
       vehicles = data;
     } else if (data && typeof data === "object") {
-      // If it's a single object, wrap it in array
       vehicles = [data];
     }
 
-    console.log(`✅ Found ${vehicles.length} vehicles`);
+    // ✅ مطمئن میشویم که فقط ۳ ماشین برگردانده شود
+    const limitedVehicles = vehicles.slice(0, 3);
+
+    console.log(
+      `✅ Found ${vehicles.length} vehicles, showing ${limitedVehicles.length}`,
+    );
 
     // Validate each vehicle has required fields
-    const validVehicles = vehicles.filter((v) => v && typeof v === "object");
+    const validVehicles = limitedVehicles.filter(
+      (v) => v && typeof v === "object",
+    );
     console.log(`✅ ${validVehicles.length} valid vehicles after filtering`);
 
     return validVehicles;
@@ -84,10 +92,7 @@ export default async function HomePage() {
   const featuredVehicles = await getFeaturedVehicles();
 
   // Log the final data structure
-  console.log(
-    "📦 Final featuredVehicles:",
-    JSON.stringify(featuredVehicles, null, 2),
-  );
+  console.log(`📦 Final featuredVehicles: ${featuredVehicles.length} vehicles`);
 
   // ============================================
   // Countries and Cities data (Europe + USA)
@@ -310,7 +315,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ===== Featured Vehicles ===== */}
+      {/* ===== Featured Vehicles (Only 3 Cars) ===== */}
       <section className="py-16">
         <div className="container-custom">
           <div className="flex justify-between items-center mb-8">
@@ -342,12 +347,11 @@ export default async function HomePage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {featuredVehicles.map((vehicle, index) => {
-                // Log each vehicle to debug
+              {/* ✅ فقط ۳ ماشین اول نمایش داده میشوند */}
+              {featuredVehicles.slice(0, 3).map((vehicle, index) => {
                 console.log(`Vehicle ${index + 1}:`, vehicle);
 
                 // Transform vehicle data to match the expected format
-                // The VehicleCard expects certain fields
                 const carData = {
                   id: vehicle.id,
                   title:
