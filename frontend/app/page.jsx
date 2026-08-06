@@ -1,41 +1,66 @@
-"use client";
-
-import { useState, useEffect } from "react";
+// app/page.jsx
+// ============================================
+// 📦 Imports
+// ============================================
 import Link from "next/link";
-import Image from "next/image";
-import { useRouter } from "next/navigation";
 import {
-  Search,
   Car,
   Shield,
   Headphones,
   ThumbsUp,
   ArrowRight,
-  MapPin,
-  Calendar,
-  Gauge,
-  Fuel,
-  Heart,
-  ChevronDown,
-  X,
   Star,
 } from "lucide-react";
 import { vehiclesService } from "../services/vehicles.service";
-import { formatPrice, formatMileage } from "../helpers/format";
-import toast from "react-hot-toast";
+import SearchBox from "../components/SearchBox";
+import VehicleCard from "../components/vehicles/VehicleCard";
 
 // ============================================
-// 🏠 Home Page
+// 📦 Metadata for SEO
 // ============================================
-export default function HomePage() {
-  const router = useRouter();
-  const [featuredVehicles, setFeaturedVehicles] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCountry, setSelectedCountry] = useState("");
-  const [selectedCity, setSelectedCity] = useState("");
-  const [priceRange, setPriceRange] = useState("");
+export const metadata = {
+  title: "CarMarket - Find Your Dream Car in Europe & USA",
+  description:
+    "Browse thousands of new and used cars from trusted sellers across Europe and USA. Buy or sell your car easily.",
+  keywords: "car market, buy car, sell car, europe cars, usa cars,二手车",
+  openGraph: {
+    title: "CarMarket - Find Your Dream Car",
+    description:
+      "Browse thousands of new and used cars from trusted sellers across Europe and USA.",
+    images: ["/og-image.jpg"],
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "CarMarket - Find Your Dream Car",
+    description:
+      "Browse thousands of new and used cars from trusted sellers across Europe and USA.",
+    images: ["/og-image.jpg"],
+  },
+};
+
+// ============================================
+// 📦 Data fetching in Server Component
+// ============================================
+async function getFeaturedVehicles() {
+  try {
+    const data = await vehiclesService.getAllCars({
+      limit: 3,
+      ordering: "-created_at",
+    });
+    return data.results || data || [];
+  } catch (error) {
+    console.error("Error fetching vehicles:", error);
+    return [];
+  }
+}
+
+// ============================================
+// 🏠 Home Page (Server Component)
+// ============================================
+export default async function HomePage() {
+  // Fetch data on the server side
+  const featuredVehicles = await getFeaturedVehicles();
 
   // ============================================
   // Countries and Cities data (Europe + USA)
@@ -120,7 +145,7 @@ export default function HomePage() {
   ];
 
   // ============================================
-  // Price ranges (with higher values)
+  // Price ranges
   // ============================================
   const priceRanges = [
     { value: "5000", label: "Under $5,000" },
@@ -138,72 +163,7 @@ export default function HomePage() {
   ];
 
   // ============================================
-  // Get cities based on selected country
-  // ============================================
-  const getCities = () => {
-    const country = countries.find((c) => c.value === selectedCountry);
-    return country ? country.cities : [];
-  };
-
-  // ============================================
-  // Fetch featured vehicles using getAllCars
-  // ============================================
-  useEffect(() => {
-    const fetchVehicles = async () => {
-      setLoading(true);
-      setError(null);
-
-      try {
-        console.log("🔄 Fetching vehicles...");
-        // ✅ Using getAllCars from vehiclesService
-        const data = await vehiclesService.getAllCars({
-          limit: 6,
-          ordering: "-created_at",
-        });
-        console.log("✅ Vehicles fetched:", data);
-
-        // Handle different response formats
-        const vehicles = data.results || data || [];
-        setFeaturedVehicles(vehicles);
-      } catch (error) {
-        console.error("❌ Error fetching vehicles:", error);
-        setError(error.message || "Failed to load vehicles");
-        toast.error("Failed to load vehicles");
-        setFeaturedVehicles([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchVehicles();
-  }, []);
-
-  // ============================================
-  // Handle search
-  // ============================================
-  const handleSearch = (e) => {
-    e.preventDefault();
-    const params = new URLSearchParams();
-    if (searchQuery) params.append("search", searchQuery);
-    if (selectedCountry) params.append("country", selectedCountry);
-    if (selectedCity) params.append("city", selectedCity);
-    if (priceRange) params.append("price_max", priceRange);
-
-    router.push(`/vehicles?${params.toString()}`);
-  };
-
-  // ============================================
-  // Clear filters
-  // ============================================
-  const clearFilters = () => {
-    setSelectedCountry("");
-    setSelectedCity("");
-    setPriceRange("");
-    setSearchQuery("");
-  };
-
-  // ============================================
-  // Stats
+  // Stats data
   // ============================================
   const stats = [
     { label: "Total Vehicles", value: "12,847+", icon: Car },
@@ -317,144 +277,8 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* Right Side - Search Box */}
-            <div className="card p-6 md:p-8 shadow-xl">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold">🔍 Search Cars</h3>
-                {(selectedCountry ||
-                  selectedCity ||
-                  priceRange ||
-                  searchQuery) && (
-                  <button
-                    onClick={clearFilters}
-                    className="text-sm text-red-500 hover:text-red-600 flex items-center gap-1"
-                  >
-                    <X className="w-4 h-4" />
-                    Clear All
-                  </button>
-                )}
-              </div>
-
-              <form onSubmit={handleSearch} className="space-y-3">
-                {/* Search Input */}
-                <input
-                  type="text"
-                  placeholder="Search by brand, model, or keyword..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full p-3 border border-[rgb(var(--border))] rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-[rgb(var(--background))] text-sm"
-                />
-
-                {/* Country & City - 2 columns */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="relative">
-                    <select
-                      value={selectedCountry}
-                      onChange={(e) => {
-                        setSelectedCountry(e.target.value);
-                        setSelectedCity("");
-                      }}
-                      className="w-full p-3 pr-8 border border-[rgb(var(--border))] rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-[rgb(var(--background))] text-sm appearance-none"
-                      style={{ maxHeight: "48px" }}
-                    >
-                      <option value="">Select Country</option>
-                      {countries.map((country) => (
-                        <option key={country.value} value={country.value}>
-                          {country.label}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[rgb(var(--muted-foreground))] pointer-events-none" />
-                  </div>
-
-                  <div className="relative">
-                    <select
-                      value={selectedCity}
-                      onChange={(e) => setSelectedCity(e.target.value)}
-                      className="w-full p-3 pr-8 border border-[rgb(var(--border))] rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-[rgb(var(--background))] text-sm appearance-none disabled:opacity-50 disabled:cursor-not-allowed"
-                      disabled={!selectedCountry}
-                      style={{ maxHeight: "48px" }}
-                    >
-                      <option value="">Select City</option>
-                      {getCities().map((city) => (
-                        <option key={city} value={city}>
-                          {city}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[rgb(var(--muted-foreground))] pointer-events-none" />
-                  </div>
-                </div>
-
-                {/* Price Range */}
-                <div className="relative">
-                  <select
-                    value={priceRange}
-                    onChange={(e) => setPriceRange(e.target.value)}
-                    className="w-full p-3 pr-8 border border-[rgb(var(--border))] rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-[rgb(var(--background))] text-sm appearance-none"
-                    style={{ maxHeight: "48px" }}
-                  >
-                    <option value="">Select Price Range</option>
-                    {priceRanges.map((range) => (
-                      <option key={range.value} value={range.value}>
-                        {range.label}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[rgb(var(--muted-foreground))] pointer-events-none" />
-                </div>
-
-                {/* Selected filters tags */}
-                {(selectedCountry || selectedCity || priceRange) && (
-                  <div className="flex flex-wrap gap-2 pt-1">
-                    {selectedCountry && (
-                      <span className="inline-flex items-center gap-1 bg-primary-500/10 text-primary-500 text-xs px-2 py-1 rounded-full">
-                        {
-                          countries.find((c) => c.value === selectedCountry)
-                            ?.label
-                        }
-                        <button
-                          type="button"
-                          onClick={() => setSelectedCountry("")}
-                          className="hover:text-red-500"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </span>
-                    )}
-                    {selectedCity && (
-                      <span className="inline-flex items-center gap-1 bg-primary-500/10 text-primary-500 text-xs px-2 py-1 rounded-full">
-                        {selectedCity}
-                        <button
-                          type="button"
-                          onClick={() => setSelectedCity("")}
-                          className="hover:text-red-500"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </span>
-                    )}
-                    {priceRange && (
-                      <span className="inline-flex items-center gap-1 bg-primary-500/10 text-primary-500 text-xs px-2 py-1 rounded-full">
-                        {priceRanges.find((p) => p.value === priceRange)?.label}
-                        <button
-                          type="button"
-                          onClick={() => setPriceRange("")}
-                          className="hover:text-red-500"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </span>
-                    )}
-                  </div>
-                )}
-
-                <button type="submit" className="btn-primary w-full">
-                  <Search className="w-4 h-4 mr-2" />
-                  Search Cars
-                </button>
-              </form>
-            </div>
+            {/* Right Side - Search Box (Client Component) */}
+            <SearchBox countries={countries} priceRanges={priceRanges} />
           </div>
         </div>
       </section>
@@ -479,33 +303,7 @@ export default function HomePage() {
             </Link>
           </div>
 
-          {loading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[1, 2, 3, 4, 5, 6].map((i) => (
-                <div key={i} className="card p-4 animate-pulse">
-                  <div className="h-48 bg-[rgb(var(--muted))] rounded-lg"></div>
-                  <div className="h-4 bg-[rgb(var(--muted))] rounded mt-3 w-3/4"></div>
-                  <div className="h-4 bg-[rgb(var(--muted))] rounded mt-2 w-1/2"></div>
-                </div>
-              ))}
-            </div>
-          ) : error ? (
-            <div className="text-center py-12">
-              <div className="text-4xl mb-4">⚠️</div>
-              <p className="text-red-500 font-semibold">
-                Failed to load vehicles
-              </p>
-              <p className="text-[rgb(var(--muted-foreground))] mt-2">
-                {error}
-              </p>
-              <button
-                onClick={() => window.location.reload()}
-                className="btn-primary mt-4"
-              >
-                Retry
-              </button>
-            </div>
-          ) : featuredVehicles.length === 0 ? (
+          {featuredVehicles.length === 0 ? (
             <div className="text-center py-12">
               <div className="text-4xl mb-4">🚗</div>
               <p className="text-[rgb(var(--muted-foreground))]">
@@ -624,85 +422,3 @@ export default function HomePage() {
     </div>
   );
 }
-
-// ============================================
-// 🚗 VehicleCard Component
-// ============================================
-const VehicleCard = ({ vehicle }) => {
-  const router = useRouter();
-
-  const handleClick = () => {
-    router.push(`/vehicles/${vehicle.id}`);
-  };
-
-  return (
-    <div
-      onClick={handleClick}
-      className="card overflow-hidden cursor-pointer hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
-    >
-      <div className="relative h-48 bg-[rgb(var(--muted))]">
-        {vehicle.image ? (
-          <Image
-            src={vehicle.image}
-            alt={vehicle.title || vehicle.model}
-            fill
-            className="object-cover"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-4xl text-[rgb(var(--muted-foreground))]">
-            🚗
-          </div>
-        )}
-        <div className="absolute top-2 right-2">
-          <Heart className="w-5 h-5 text-white/70 hover:text-red-500 transition-colors cursor-pointer" />
-        </div>
-        {vehicle.country && (
-          <div className="absolute top-2 left-2 bg-black/60 text-white text-xs px-2 py-1 rounded">
-            {vehicle.country}
-          </div>
-        )}
-      </div>
-
-      <div className="p-4">
-        <h3 className="font-semibold text-lg truncate">
-          {vehicle.title || `${vehicle.brand} ${vehicle.model}`}
-        </h3>
-        <p className="text-xl font-bold text-primary-500 mt-1">
-          {formatPrice(vehicle.price)}
-        </p>
-
-        <div className="grid grid-cols-2 gap-2 mt-3 text-sm text-[rgb(var(--muted-foreground))]">
-          <div className="flex items-center gap-1">
-            <Calendar className="w-3.5 h-3.5" />
-            <span>{vehicle.year || "N/A"}</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <Gauge className="w-3.5 h-3.5" />
-            <span>{formatMileage(vehicle.mileage)} km</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <Fuel className="w-3.5 h-3.5" />
-            <span>{vehicle.fuel_type || "N/A"}</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <MapPin className="w-3.5 h-3.5" />
-            <span>{vehicle.city || vehicle.country || "N/A"}</span>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between mt-4 pt-3 border-t border-[rgb(var(--border))]">
-          <span className="text-xs text-[rgb(var(--muted-foreground))]">
-            {vehicle.status === "active" ? (
-              <span className="text-green-500">✅ Available</span>
-            ) : (
-              <span className="text-red-500">❌ Sold</span>
-            )}
-          </span>
-          <button className="text-primary-500 hover:text-primary-600 transition-colors">
-            View Details →
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
