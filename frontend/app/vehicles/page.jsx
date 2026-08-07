@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Search,
   Filter,
@@ -22,7 +23,9 @@ import {
   CITIES,
 } from "../../helpers/constants";
 
-// ===== Loading component =====
+// ============================================
+// Loading component
+// ============================================
 const Loading = () => (
   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
     {[...Array(8)].map((_, i) => (
@@ -35,20 +38,29 @@ const Loading = () => (
   </div>
 );
 
-// ===== Initial filter state (Backend supported) =====
+// ============================================
+// Initial filter state (Backend supported)
+// ============================================
 const INITIAL_FILTERS = {
   brand: "",
-  price_min: "", // ✅ Changed from min_price
-  price_max: "", // ✅ Changed from max_price
-  fuel_type: "", // ✅ Changed from fuel_type (was correct)
-  year_min: "", // ✅ Changed from year
-  year_max: "", // ✅ Added year_max
-  gearbox: "", // ✅ Changed from gearbox (was correct)
+  price_min: "",
+  price_max: "",
+  fuel_type: "",
+  year_min: "",
+  year_max: "",
+  gearbox: "",
   city: "",
-  ordering: "-created_at", // ✅ Changed from empty string
+  ordering: "-created_at",
 };
 
+// ============================================
+// Main Vehicles Page
+// ============================================
 export default function VehiclesPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // ===== State =====
   const [cars, setCars] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -58,55 +70,127 @@ export default function VehiclesPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
 
-  // ===== Debounce search =====
+  // ============================================
+  // Sync filters with URL params
+  // ============================================
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams);
+    const urlFilters = { ...INITIAL_FILTERS };
+
+    Object.keys(urlFilters).forEach((key) => {
+      const value = params.get(key);
+      if (value) {
+        urlFilters[key] = value;
+      }
+    });
+
+    const searchValue = params.get("search");
+    if (searchValue) {
+      setSearch(searchValue);
+    }
+
+    const page = params.get("page");
+    if (page) {
+      setCurrentPage(parseInt(page));
+    }
+
+    setFilters(urlFilters);
+  }, [searchParams]);
+
+  // ============================================
+  // Update URL when filters change
+  // ============================================
+  const updateURL = useCallback(() => {
+    const params = new URLSearchParams();
+
+    if (search) params.set("search", search);
+
+    Object.keys(filters).forEach((key) => {
+      const value = filters[key];
+      if (value && value !== "" && value !== "-created_at") {
+        params.set(key, value);
+      }
+    });
+
+    if (currentPage > 1) {
+      params.set("page", currentPage.toString());
+    }
+
+    const url = `/vehicles?${params.toString()}`;
+    router.replace(url, { scroll: false });
+  }, [router, filters, search, currentPage]);
+
+  // ============================================
+  // Update URL when filters/search/page change
+  // ============================================
+  useEffect(() => {
+    updateURL();
+  }, [updateURL]);
+
+  // ============================================
+  // Debounce search
+  // ============================================
   const debouncedSearch = useDebounce(search, 500);
 
-  // ===== Memoized computed values =====
+  // ============================================
+  // Memoized computed values
+  // ============================================
   const hasFilters = useMemo(() => {
     return Object.values(filters).some((v) => v !== "" && v !== "-created_at");
   }, [filters]);
 
-  // ===== Memoized filter options =====
+  // ============================================
+  // Memoized filter options
+  // ============================================
   const fuelTypes = useMemo(() => FUEL_TYPES, []);
   const gearboxTypes = useMemo(() => GEARBOX_TYPES, []);
   const years = useMemo(() => YEARS, []);
   const orderOptions = useMemo(() => ORDER_OPTIONS, []);
   const cities = useMemo(() => CITIES, []);
 
-  // ===== Build query filters (Backend compatible) =====
+  // ============================================
+  // Build query filters (Backend compatible)
+  // ============================================
   const buildFilters = useCallback(() => {
-    // ✅ Start with filters (without page)
     const allFilters = { ...filters };
 
-    // ✅ Add search if exists
     if (debouncedSearch) {
       allFilters.search = debouncedSearch;
     }
 
-    // ✅ Remove empty values
-    const cleanFilters = Object.fromEntries(
-      Object.entries(allFilters).filter(
-        ([_, v]) => v !== "" && v !== null && v !== undefined,
-      ),
-    );
+    console.log("🔍 allFilters BEFORE cleanup:", JSON.stringify(allFilters));
 
-    // ✅ Add pagination (backend uses offset/limit, not page)
-    // If your backend supports page, use it; otherwise use offset
-    // cleanFilters.page = currentPage;
+    // Remove empty values (but keep 0)
+    const cleanFilters = {};
+    Object.keys(allFilters).forEach((key) => {
+      const value = allFilters[key];
+      if (value !== "" && value !== null && value !== undefined) {
+        cleanFilters[key] = value;
+      }
+    });
+
+    console.log("🔍 cleanFilters AFTER cleanup:", JSON.stringify(cleanFilters));
+
+    // Add pagination
     cleanFilters.limit = 40;
     cleanFilters.offset = (currentPage - 1) * 40;
 
     return cleanFilters;
   }, [filters, debouncedSearch, currentPage]);
 
-  // ===== Fetch cars =====
+  // ============================================
+  // Fetch cars
+  // ============================================
   const fetchCars = useCallback(async () => {
     setLoading(true);
     try {
       const cleanFilters = buildFilters();
-      console.log("🚗 Fetching with filters:", cleanFilters);
+      console.log("🚗 Fetching with filters:", JSON.stringify(cleanFilters));
+
       const data = await vehiclesService.getAllCars(cleanFilters);
-      console.log("✅ Cars fetched:", data);
+
+      console.log("✅ Cars fetched:", JSON.stringify(data));
+
       setCars(data.results || []);
       setTotalCount(data.count || 0);
       setTotalPages(Math.ceil((data.count || 0) / 40));
@@ -120,14 +204,24 @@ export default function VehiclesPage() {
     }
   }, [buildFilters]);
 
-  // ===== Fetch on filter/refresh change =====
+  // ============================================
+  // Fetch on filter/search/page change
+  // ============================================
   useEffect(() => {
+    console.log("🔄 useEffect triggered - fetching cars...");
     fetchCars();
   }, [fetchCars]);
 
-  // ===== Handlers =====
+  // ============================================
+  // Handlers
+  // ============================================
   const changeFilter = useCallback((key, value) => {
-    setFilters((prev) => ({ ...prev, [key]: value }));
+    console.log("🔄 Changing filter:", key, "=", value);
+    setFilters((prev) => {
+      const newFilters = { ...prev, [key]: value };
+      console.log("🔄 New filters state:", JSON.stringify(newFilters));
+      return newFilters;
+    });
     setCurrentPage(1);
   }, []);
 
@@ -156,7 +250,9 @@ export default function VehiclesPage() {
     [totalPages],
   );
 
-  // ===== Memoized filter panel =====
+  // ============================================
+  // Memoized filter panel
+  // ============================================
   const filterPanel = useMemo(() => {
     if (!showFilters) return null;
 
@@ -183,7 +279,7 @@ export default function VehiclesPage() {
             />
           </div>
 
-          {/* Min Price - ✅ Changed to price_min */}
+          {/* Min Price */}
           <div>
             <label className="label text-xs">Min Price ($)</label>
             <input
@@ -195,7 +291,7 @@ export default function VehiclesPage() {
             />
           </div>
 
-          {/* Max Price - ✅ Changed to price_max */}
+          {/* Max Price */}
           <div>
             <label className="label text-xs">Max Price ($)</label>
             <input
@@ -207,7 +303,7 @@ export default function VehiclesPage() {
             />
           </div>
 
-          {/* Fuel Type - ✅ Changed to fuel_type */}
+          {/* Fuel Type */}
           <div>
             <label className="label text-xs">Fuel Type</label>
             <select
@@ -224,7 +320,7 @@ export default function VehiclesPage() {
             </select>
           </div>
 
-          {/* Gearbox - ✅ Changed to gearbox */}
+          {/* Gearbox */}
           <div>
             <label className="label text-xs">Transmission</label>
             <select
@@ -241,7 +337,7 @@ export default function VehiclesPage() {
             </select>
           </div>
 
-          {/* Year Min - ✅ Added */}
+          {/* Year Min */}
           <div>
             <label className="label text-xs">Year From</label>
             <select
@@ -258,7 +354,7 @@ export default function VehiclesPage() {
             </select>
           </div>
 
-          {/* Year Max - ✅ Added */}
+          {/* Year Max */}
           <div>
             <label className="label text-xs">Year To</label>
             <select
@@ -315,7 +411,9 @@ export default function VehiclesPage() {
     cities,
   ]);
 
-  // ===== Pagination component =====
+  // ============================================
+  // Pagination component
+  // ============================================
   const Pagination = useMemo(() => {
     if (totalPages <= 1) return null;
 
@@ -401,6 +499,9 @@ export default function VehiclesPage() {
     );
   }, [currentPage, totalPages, handlePageChange]);
 
+  // ============================================
+  // Render
+  // ============================================
   return (
     <div className="bg-[rgb(var(--background))] py-8">
       <div className="container-custom">
