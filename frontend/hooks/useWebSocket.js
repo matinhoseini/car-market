@@ -13,7 +13,7 @@ export const useChatWebSocket = ({ conversationId, onMessageReceived }) => {
   const reconnectAttempts = useRef(0);
   const maxReconnectAttempts = 5;
   const hasShownErrorRef = useRef(false);
-  const processedMessageIds = useRef(new Set()); // ✅ Track processed message IDs
+  const processedMessageIds = useRef(new Set());
   const queryClient = useQueryClient();
 
   const connect = useCallback(() => {
@@ -63,7 +63,7 @@ export const useChatWebSocket = ({ conversationId, onMessageReceived }) => {
       setIsConnecting(false);
       reconnectAttempts.current = 0;
       hasShownErrorRef.current = false;
-      processedMessageIds.current.clear(); // ✅ Clear on reconnect
+      processedMessageIds.current.clear();
     };
 
     wsRef.current.onmessage = (event) => {
@@ -74,13 +74,11 @@ export const useChatWebSocket = ({ conversationId, onMessageReceived }) => {
         if (data.type === "message" || data.type === "chat_message") {
           const newMessage = data.payload || data.message;
 
-          // ✅ Check if message already processed
+          // ✅ Check if message already processed by ID
           if (processedMessageIds.current.has(newMessage.id)) {
             console.log("⚠️ Duplicate message blocked:", newMessage.id);
             return;
           }
-
-          // ✅ Mark as processed
           processedMessageIds.current.add(newMessage.id);
 
           // Update cache
@@ -109,7 +107,7 @@ export const useChatWebSocket = ({ conversationId, onMessageReceived }) => {
 
         if (data.type === "connection") {
           console.log("Connection confirmed:", data);
-          processedMessageIds.current.clear(); // ✅ Clear on reconnection
+          processedMessageIds.current.clear();
         }
 
         if (data.type === "error") {
@@ -165,9 +163,6 @@ export const useChatWebSocket = ({ conversationId, onMessageReceived }) => {
     };
   }, [conversationId, onMessageReceived, queryClient, isConnecting]);
 
-  // ============================================
-  // Send message
-  // ============================================
   const sendMessage = useCallback((text) => {
     console.log("sendMessage called with:", text);
 
@@ -202,9 +197,6 @@ export const useChatWebSocket = ({ conversationId, onMessageReceived }) => {
     }
   }, []);
 
-  // ============================================
-  // Send typing indicator
-  // ============================================
   const sendTyping = useCallback((isTyping) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(
@@ -216,9 +208,6 @@ export const useChatWebSocket = ({ conversationId, onMessageReceived }) => {
     }
   }, []);
 
-  // ============================================
-  // Disconnect
-  // ============================================
   const disconnect = useCallback(() => {
     if (wsRef.current) {
       if (wsRef.current.readyState === WebSocket.OPEN) {
@@ -237,14 +226,10 @@ export const useChatWebSocket = ({ conversationId, onMessageReceived }) => {
     processedMessageIds.current.clear();
   }, []);
 
-  // ============================================
-  // Lifecycle
-  // ============================================
   useEffect(() => {
     if (conversationId) {
       connect();
     }
-
     return () => {
       disconnect();
     };

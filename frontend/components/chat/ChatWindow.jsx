@@ -15,9 +15,10 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
   const messagesEndRef = useRef(null);
   const containerRef = useRef(null);
 
-  const sentMessageIds = useRef(new Set());
-  // ✅ لیستی از ID پیام‌های optimistic (به جای یک ref)
-  const optimisticMessageIds = useRef(new Set());
+  // ✅ برای جلوگیری از ارسال دوبار
+  const isSendingRef = useRef(false);
+  // ✅ برای جلوگیری از اضافه شدن دوبار پیام
+  const messageIdsRef = useRef(new Set());
 
   // ============================================
   // Load messages with infinite scroll
@@ -35,27 +36,30 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
         console.log("📩 New message received:", newMessage);
 
         setMessages((prev) => {
-          let updatedMessages = prev;
-
-          // ✅ اگر پیام optimistic وجود داشت، حذف کن
-          if (optimisticMessageIds.current.has(newMessage.id)) {
-            console.log("🔄 Removing optimistic message:", newMessage.id);
-            updatedMessages = prev.filter(
-              (msg) => !optimisticMessageIds.current.has(msg.id),
-            );
-            optimisticMessageIds.current.delete(newMessage.id);
-          }
-
-          // ✅ بررسی پیام تکراری
-          if (updatedMessages.some((msg) => msg.id === newMessage.id)) {
+          // ✅ اگر پیام قبلاً وجود دارد، نادیده بگیر
+          if (messageIdsRef.current.has(newMessage.id)) {
             console.log("⚠️ Duplicate message blocked:", newMessage.id);
-            return updatedMessages;
+            return prev;
           }
 
-          const newMessages = [...updatedMessages, newMessage];
-          return newMessages.sort((a, b) => {
-            return new Date(a.created_at) - new Date(b.created_at);
-          });
+          // ✅ اگر پیام با همین متن و زمان نزدیک وجود دارد، نادیده بگیر
+          const exists = prev.some(
+            (msg) =>
+              msg.text === newMessage.text &&
+              Math.abs(
+                new Date(msg.created_at) - new Date(newMessage.created_at),
+              ) < 3000,
+          );
+          if (exists) {
+            console.log("⚠️ Duplicate by content blocked:", newMessage.text);
+            return prev;
+          }
+
+          messageIdsRef.current.add(newMessage.id);
+          const newMessages = [...prev, newMessage];
+          return newMessages.sort(
+            (a, b) => new Date(a.created_at) - new Date(b.created_at),
+          );
         });
 
         if (isAtBottom) {
@@ -84,12 +88,41 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
       const newMessages = allMessages.filter((m) => !existingIds.has(m.id));
       if (newMessages.length === 0) return prev;
 
-      const combined = [...prev, ...newMessages];
-      return combined.sort((a, b) => {
-        return new Date(a.created_at) - new Date(b.created_at);
-      });
+      newMessages.forEach((m) => messageIdsRef.current.add(m.id));
+      return [...prev, ...newMessages].sort(
+        (a, b) => new Date(a.created_at) - new Date(b.created_at),
+      );
     });
   }, [data]);
+
+  // ============================================
+  // ✅ Group messages by sender (like Telegram) - FIXED
+  // ============================================
+  const groupedBySender = useCallback((dateMessages) => {
+    if (!dateMessages || dateMessages.length === 0) return [];
+
+    const groups = [];
+    let currentGroup = null;
+
+    dateMessages.forEach((message) => {
+      const senderKey = message.sender;
+
+      // ✅ گروه جدید اگر فرستنده عوض شده باشد
+      if (!currentGroup || currentGroup.sender !== senderKey) {
+        currentGroup = {
+          sender: senderKey,
+          sender_username: message.sender_username,
+          messages: [message],
+        };
+        groups.push(currentGroup);
+      } else {
+        // ✅ اضافه کردن به گروه فعلی
+        currentGroup.messages.push(message);
+      }
+    });
+
+    return groups;
+  }, []);
 
   // ============================================
   // Group messages by date
@@ -119,29 +152,6 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
       return new Date(a[0]) - new Date(b[0]);
     });
   }, [messages, getDateKey]);
-
-  // ============================================
-  // Group messages by sender (like Telegram)
-  // ============================================
-  const groupedBySender = useCallback((dateMessages) => {
-    const groups = [];
-    let currentGroup = null;
-
-    dateMessages.forEach((message) => {
-      if (!currentGroup || currentGroup.sender !== message.sender) {
-        currentGroup = {
-          sender: message.sender,
-          sender_username: message.sender_username,
-          messages: [message],
-        };
-        groups.push(currentGroup);
-      } else {
-        currentGroup.messages.push(message);
-      }
-    });
-
-    return groups;
-  }, []);
 
   // ============================================
   // Scroll functions
@@ -185,7 +195,7 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
   }, [isLoading, messages.length, scrollToBottom]);
 
   // ============================================
-  // Handle send message - با لیستی از IDهای optimistic
+  // ✅ Handle send message - WITHOUT optimistic (wait for WebSocket)
   // ============================================
   const handleSend = useCallback(
     (text) => {
@@ -202,14 +212,13 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
         return;
       }
 
-      const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
-
-      if (sentMessageIds.current.has(tempId)) {
-        console.log("⚠️ Duplicate send attempt blocked:", tempId);
+      // ✅ جلوگیری از ارسال همزمان
+      if (isSendingRef.current) {
+        console.log("⚠️ Already sending, ignoring");
         return;
       }
-      sentMessageIds.current.add(tempId);
 
+      isSendingRef.current = true;
       console.log("📤 Sending message:", text.trim());
 
       try {
@@ -217,57 +226,26 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
         console.log("📤 sendMessage result:", success);
 
         if (success) {
-          const tempMessage = {
-            id: tempId,
-            text: text.trim(),
-            sender: "me",
-            created_at: new Date().toISOString(),
-            is_read: false,
-          };
+          // ✅ فقط ارسال کن، منتظر WebSocket باش تا پیام برگردد
+          // NO optimistic message here!
+          toast.success("Message sent");
 
-          // ✅ اضافه کردن به لیست optimistic
-          optimisticMessageIds.current.add(tempId);
-
-          console.log("📤 Adding optimistic message:", tempMessage);
-          console.log("📤 Optimistic IDs:", [...optimisticMessageIds.current]);
-
-          setMessages((prev) => {
-            const exists = prev.some(
-              (msg) =>
-                msg.text === tempMessage.text &&
-                Math.abs(
-                  new Date(msg.created_at) - new Date(tempMessage.created_at),
-                ) < 2000,
-            );
-            if (exists) {
-              console.log("⚠️ Message already in state, skipping");
-              return prev;
-            }
-
-            const newMessages = [...prev, tempMessage];
-            return newMessages.sort((a, b) => {
-              return new Date(a.created_at) - new Date(b.created_at);
-            });
-          });
-
-          scrollToBottom();
+          // ✅ بعد از ۲ ثانیه قفل را آزاد کن
+          setTimeout(() => {
+            isSendingRef.current = false;
+            console.log("🔓 Send lock released");
+          }, 2000);
+        } else {
+          isSendingRef.current = false;
+          toast.error("Failed to send message");
         }
       } catch (error) {
         console.error("❌ Error sending:", error);
         toast.error("Failed to send message");
-        optimisticMessageIds.current.delete(tempId);
-      } finally {
-        setTimeout(() => {
-          sentMessageIds.current.delete(tempId);
-          // ✅ بعد از ۵ ثانیه از لیست optimistic حذف کن (امنیت)
-          setTimeout(() => {
-            optimisticMessageIds.current.delete(tempId);
-          }, 1000);
-          console.log("🔓 Send lock released for:", tempId);
-        }, 5000);
+        isSendingRef.current = false;
       }
     },
-    [sendMessage, scrollToBottom, isConnected],
+    [sendMessage, isConnected],
   );
 
   // ============================================
@@ -316,11 +294,11 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
             <div key={dateKey}>
               <DateHeader date={dateKey} />
 
+              {/* ✅ گروه‌بندی بر اساس فرستنده */}
               {groupedBySender(dateMessages).map((group, groupIndex) => (
                 <div key={groupIndex}>
                   {group.messages.map((message, msgIndex) => {
                     const isFirstInGroup = msgIndex === 0;
-
                     return (
                       <MessageBubble
                         key={message.id}
