@@ -1,15 +1,44 @@
-// services/vehicles.service.js
 import { api } from "./apiClient";
 
+// ============================================
+// 📦 Vehicles Service
+// ============================================
 export const vehiclesService = {
   // ============================================
   // GET: /api/cars/list/
-  // Get all cars with filters
+  // Get all cars with filters (Backend supported)
   // ============================================
   getAllCars: async (filters = {}) => {
-    const response = await api.get("/cars/list/", {
-      params: { ...filters, page_size: 100 },
+    const allowedFilters = {
+      search: filters.search || undefined,
+      brand: filters.brand || undefined,
+      city: filters.city || undefined,
+      fuel_type: filters.fuel_type || undefined,
+      gearbox: filters.gearbox || undefined,
+      price_min: filters.price_min || undefined,
+      price_max: filters.price_max || undefined,
+      year_min: filters.year_min || undefined,
+      year_max: filters.year_max || undefined,
+      ordering: filters.ordering || "-created_at",
+      page_size: filters.page_size || 100,
+    };
+
+    Object.keys(allowedFilters).forEach((key) => {
+      if (
+        allowedFilters[key] === undefined ||
+        allowedFilters[key] === "" ||
+        allowedFilters[key] === null
+      ) {
+        delete allowedFilters[key];
+      }
     });
+
+    console.log("📡 Fetching cars with filters:", allowedFilters);
+
+    const response = await api.get("/cars/list/", {
+      params: allowedFilters,
+    });
+
     return response.data;
   },
 
@@ -17,12 +46,10 @@ export const vehiclesService = {
   // GET: /api/cars/{id}
   // Get car details by ID
   // ============================================
-  // services/vehicles.service.js
-  // services/vehicles.service.js
   getCarById: async (id) => {
-    console.log("📡 getCarById called with id:", id); // ← لاگ اضافه کن
+    console.log("📡 getCarById called with id:", id);
     const response = await api.get(`/cars/${id}/`);
-    console.log("✅ Car received:", response.data); // ← لاگ اضافه کن
+    console.log("✅ Car received:", response.data);
     return response.data;
   },
 
@@ -167,7 +194,7 @@ export const vehiclesService = {
   },
 
   // ============================================
-  // DELETE: /api/cars/{image}/{image_id}
+  // DELETE: /api/cars/image/{image_id}
   // Delete specific image
   // ============================================
   deleteImage: async (imageId) => {
