@@ -26,24 +26,24 @@ const MessageBubble = ({
   return (
     <div className={`flex ${isOwn ? "justify-end" : "justify-start"} mb-0.5`}>
       <div className="flex items-end gap-2 max-w-[85%] sm:max-w-[75%]">
-        {/* ===== Avatar (only for first message in group) ===== */}
+        {/* ===== Avatar (only for first message in group - OTHER users only) ===== */}
         {!isOwn && showAvatar && (
           <div className="w-8 h-8 rounded-full bg-gradient-to-r from-primary-500 to-accent-500 flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
             {message.sender_username?.charAt(0).toUpperCase() || "U"}
           </div>
         )}
 
-        {/* ===== Empty space for alignment ===== */}
+        {/* ===== Empty space for alignment (OTHER users without avatar) ===== */}
         {!isOwn && !showAvatar && <div className="w-8 h-8 flex-shrink-0"></div>}
 
         <div
           className={`rounded-2xl px-3 py-1.5 sm:px-4 sm:py-2 ${
             isOwn
-              ? "bg-blue-500 text-white rounded-br-none" // ✅ Own messages: Blue, right side
-              : "bg-gray-200 text-gray-800 rounded-bl-none" // ✅ Other messages: Gray, left side
+              ? "bg-blue-500 text-white rounded-br-none"
+              : "bg-gray-200 text-gray-800 rounded-bl-none"
           }`}
         >
-          {/* ===== Sender name (only for first message in group) ===== */}
+          {/* ===== Sender name (ONLY for other users' messages) ===== */}
           {!isOwn && showName && (
             <p className="text-[10px] sm:text-xs font-semibold text-gray-600 mb-0.5 sm:mb-1">
               {message.sender_username || "User"}
