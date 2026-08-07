@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { messageKeys } from "./useMessages";
@@ -9,8 +11,9 @@ export const useChatWebSocket = ({ conversationId, onMessageReceived }) => {
   const wsRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
   const reconnectAttempts = useRef(0);
-  const maxReconnectAttempts = 3;
-  const hasShownErrorRef = useRef(false); // ✅ Track if error already shown
+  const maxReconnectAttempts = 5;
+  const hasShownErrorRef = useRef(false);
+  const processedMessageIds = useRef(new Set()); // ✅ Track processed message IDs
   const queryClient = useQueryClient();
 
   const connect = useCallback(() => {
@@ -26,7 +29,6 @@ export const useChatWebSocket = ({ conversationId, onMessageReceived }) => {
 
     if (reconnectAttempts.current >= maxReconnectAttempts) {
       console.error("Max reconnection attempts reached");
-      // ✅ Show error only once
       if (!hasShownErrorRef.current) {
         toast.error("Connection failed. Please refresh the page.");
         hasShownErrorRef.current = true;
@@ -60,7 +62,8 @@ export const useChatWebSocket = ({ conversationId, onMessageReceived }) => {
       setIsConnected(true);
       setIsConnecting(false);
       reconnectAttempts.current = 0;
-      hasShownErrorRef.current = false; // ✅ Reset error flag on successful connection
+      hasShownErrorRef.current = false;
+      processedMessageIds.current.clear(); // ✅ Clear on reconnect
     };
 
     wsRef.current.onmessage = (event) => {
@@ -70,6 +73,17 @@ export const useChatWebSocket = ({ conversationId, onMessageReceived }) => {
 
         if (data.type === "message" || data.type === "chat_message") {
           const newMessage = data.payload || data.message;
+
+          // ✅ Check if message already processed
+          if (processedMessageIds.current.has(newMessage.id)) {
+            console.log("⚠️ Duplicate message blocked:", newMessage.id);
+            return;
+          }
+
+          // ✅ Mark as processed
+          processedMessageIds.current.add(newMessage.id);
+
+          // Update cache
           queryClient.setQueryData(
             messageKeys.list(conversationId),
             (oldData) => {
@@ -95,11 +109,11 @@ export const useChatWebSocket = ({ conversationId, onMessageReceived }) => {
 
         if (data.type === "connection") {
           console.log("Connection confirmed:", data);
+          processedMessageIds.current.clear(); // ✅ Clear on reconnection
         }
 
         if (data.type === "error") {
           console.error("Server error:", data.message);
-          // ✅ Show server error only once
           if (!hasShownErrorRef.current) {
             toast.error(data.message);
             hasShownErrorRef.current = true;
@@ -118,6 +132,7 @@ export const useChatWebSocket = ({ conversationId, onMessageReceived }) => {
       if (event.code === 1000) {
         console.log("Normal closure");
         hasShownErrorRef.current = false;
+        processedMessageIds.current.clear();
         return;
       }
 
@@ -133,7 +148,6 @@ export const useChatWebSocket = ({ conversationId, onMessageReceived }) => {
         }, delay);
       } else {
         console.error("Max reconnection attempts reached");
-        // ✅ Show error only once
         if (!hasShownErrorRef.current) {
           toast.error("Unable to connect. Please refresh the page.");
           hasShownErrorRef.current = true;
@@ -144,7 +158,6 @@ export const useChatWebSocket = ({ conversationId, onMessageReceived }) => {
     wsRef.current.onerror = (error) => {
       console.error("WebSocket error:", error);
       setIsConnecting(false);
-      // ✅ Show error only once
       if (!hasShownErrorRef.current) {
         toast.error("Connection error. Please refresh the page.");
         hasShownErrorRef.current = true;
@@ -164,7 +177,6 @@ export const useChatWebSocket = ({ conversationId, onMessageReceived }) => {
     }
 
     if (wsRef.current?.readyState !== WebSocket.OPEN) {
-      // ✅ Show offline message only once
       if (!hasShownErrorRef.current) {
         toast.error("You are offline. Please wait for reconnection.");
         hasShownErrorRef.current = true;
@@ -222,6 +234,7 @@ export const useChatWebSocket = ({ conversationId, onMessageReceived }) => {
     setIsConnecting(false);
     reconnectAttempts.current = 0;
     hasShownErrorRef.current = false;
+    processedMessageIds.current.clear();
   }, []);
 
   // ============================================
