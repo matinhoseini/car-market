@@ -8,16 +8,16 @@ import MessageInput from "./MessageInput";
 import ChatHeader from "./ChatHeader";
 import DateHeader from "./DateHeader";
 import toast from "react-hot-toast";
+import { useAuthStore } from "../../store/authStore";
 
 const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
+  const { user } = useAuthStore();
   const [messages, setMessages] = useState([]);
   const [isAtBottom, setIsAtBottom] = useState(true);
   const messagesEndRef = useRef(null);
   const containerRef = useRef(null);
 
-  // ✅ برای جلوگیری از ارسال دوبار
   const isSendingRef = useRef(false);
-  // ✅ برای جلوگیری از اضافه شدن دوبار پیام
   const messageIdsRef = useRef(new Set());
 
   // ============================================
@@ -36,13 +36,11 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
         console.log("📩 New message received:", newMessage);
 
         setMessages((prev) => {
-          // ✅ اگر پیام قبلاً وجود دارد، نادیده بگیر
           if (messageIdsRef.current.has(newMessage.id)) {
             console.log("⚠️ Duplicate message blocked:", newMessage.id);
             return prev;
           }
 
-          // ✅ اگر پیام با همین متن و زمان نزدیک وجود دارد، نادیده بگیر
           const exists = prev.some(
             (msg) =>
               msg.text === newMessage.text &&
@@ -96,35 +94,6 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
   }, [data]);
 
   // ============================================
-  // ✅ Group messages by sender (like Telegram) - FIXED
-  // ============================================
-  const groupedBySender = useCallback((dateMessages) => {
-    if (!dateMessages || dateMessages.length === 0) return [];
-
-    const groups = [];
-    let currentGroup = null;
-
-    dateMessages.forEach((message) => {
-      const senderKey = message.sender;
-
-      // ✅ گروه جدید اگر فرستنده عوض شده باشد
-      if (!currentGroup || currentGroup.sender !== senderKey) {
-        currentGroup = {
-          sender: senderKey,
-          sender_username: message.sender_username,
-          messages: [message],
-        };
-        groups.push(currentGroup);
-      } else {
-        // ✅ اضافه کردن به گروه فعلی
-        currentGroup.messages.push(message);
-      }
-    });
-
-    return groups;
-  }, []);
-
-  // ============================================
   // Group messages by date
   // ============================================
   const getDateKey = useCallback((dateString) => {
@@ -152,6 +121,33 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
       return new Date(a[0]) - new Date(b[0]);
     });
   }, [messages, getDateKey]);
+
+  // ============================================
+  // ✅ Group messages by sender (like Telegram) - FIXED
+  // ============================================
+  const groupedBySender = useCallback((dateMessages) => {
+    if (!dateMessages || dateMessages.length === 0) return [];
+
+    const groups = [];
+    let currentGroup = null;
+
+    dateMessages.forEach((message) => {
+      const senderKey = message.sender;
+
+      if (!currentGroup || currentGroup.sender !== senderKey) {
+        currentGroup = {
+          sender: senderKey,
+          sender_username: message.sender_username || "Unknown",
+          messages: [message],
+        };
+        groups.push(currentGroup);
+      } else {
+        currentGroup.messages.push(message);
+      }
+    });
+
+    return groups;
+  }, []);
 
   // ============================================
   // Scroll functions
@@ -195,7 +191,7 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
   }, [isLoading, messages.length, scrollToBottom]);
 
   // ============================================
-  // ✅ Handle send message - WITHOUT optimistic (wait for WebSocket)
+  // Handle send message
   // ============================================
   const handleSend = useCallback(
     (text) => {
@@ -212,7 +208,6 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
         return;
       }
 
-      // ✅ جلوگیری از ارسال همزمان
       if (isSendingRef.current) {
         console.log("⚠️ Already sending, ignoring");
         return;
@@ -226,11 +221,7 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
         console.log("📤 sendMessage result:", success);
 
         if (success) {
-          // ✅ فقط ارسال کن، منتظر WebSocket باش تا پیام برگردد
-          // NO optimistic message here!
           toast.success("Message sent");
-
-          // ✅ بعد از ۲ ثانیه قفل را آزاد کن
           setTimeout(() => {
             isSendingRef.current = false;
             console.log("🔓 Send lock released");
@@ -299,12 +290,14 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
                 <div key={groupIndex}>
                   {group.messages.map((message, msgIndex) => {
                     const isFirstInGroup = msgIndex === 0;
+                    const isOwn = message.sender === user?.id;
+
                     return (
                       <MessageBubble
                         key={message.id}
                         message={message}
-                        showAvatar={isFirstInGroup}
-                        showName={isFirstInGroup}
+                        showAvatar={!isOwn && isFirstInGroup}
+                        showName={!isOwn && isFirstInGroup}
                         isFirstInGroup={isFirstInGroup}
                       />
                     );

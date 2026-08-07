@@ -4,8 +4,8 @@ import { useAuthStore } from "../../store/authStore";
 
 const MessageBubble = ({
   message,
-  showAvatar = true, // ✅ Default: true
-  showName = true, // ✅ Default: true
+  showAvatar = true,
+  showName = true,
   isFirstInGroup = true,
 }) => {
   const { user } = useAuthStore();
@@ -23,14 +23,14 @@ const MessageBubble = ({
   return (
     <div className={`flex ${isOwn ? "justify-end" : "justify-start"} mb-0.5`}>
       <div className="flex items-end gap-2 max-w-[85%] sm:max-w-[75%]">
-        {/* ===== Avatar (only for first message in group - OTHER users only) ===== */}
+        {/* ===== Avatar (only for OTHER users - first message in group) ===== */}
         {!isOwn && showAvatar && (
           <div className="w-8 h-8 rounded-full bg-gradient-to-r from-primary-500 to-accent-500 flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
             {message.sender_username?.charAt(0).toUpperCase() || "U"}
           </div>
         )}
 
-        {/* ===== Empty space for alignment ===== */}
+        {/* ===== Empty space for alignment (OTHER users without avatar) ===== */}
         {!isOwn && !showAvatar && <div className="w-8 h-8 flex-shrink-0"></div>}
 
         <div
@@ -40,7 +40,7 @@ const MessageBubble = ({
               : "bg-gray-200 text-gray-800 rounded-bl-none"
           }`}
         >
-          {/* ===== Sender name (ONLY for other users' messages - first in group) ===== */}
+          {/* ===== Sender name (ONLY for other users - first in group) ===== */}
           {!isOwn && showName && (
             <p className="text-[10px] sm:text-xs font-semibold text-gray-600 mb-0.5 sm:mb-1">
               {message.sender_username || "User"}

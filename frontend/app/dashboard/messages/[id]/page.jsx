@@ -11,21 +11,21 @@ import DashboardLayout from "../../../../components/dashboard/DashboardLayout";
 const ChatPage = () => {
   const router = useRouter();
   const params = useParams();
-  const conversationId = parseInt(params.id);
-  const [canGoBack, setCanGoBack] = useState(false);
+  const [conversationId, setConversationId] = useState(null);
 
   // ============================================
-  // Check if there is a previous page in history
+  // Get conversation ID from params
   // ============================================
   useEffect(() => {
-    // Check if there's a previous page in browser history
-    if (window.history.length > 1) {
-      setCanGoBack(true);
+    if (params?.id) {
+      const id = parseInt(params.id);
+      console.log("📌 Conversation ID from params:", id);
+      setConversationId(id);
     }
-  }, []);
+  }, [params]);
 
   // ============================================
-  // Replace chat page in history with messages page
+  // Replace chat page in history
   // ============================================
   useEffect(() => {
     if (conversationId) {
@@ -38,14 +38,12 @@ const ChatPage = () => {
   }, [conversationId]);
 
   // ============================================
-  // Handle back button - go to previous page or dashboard
+  // Handle back button
   // ============================================
   const handleBack = () => {
-    if (canGoBack) {
-      // If there is a previous page, go back
+    if (window.history.length > 1) {
       router.back();
     } else {
-      // If no previous page, go to dashboard
       router.push("/dashboard");
     }
   };
@@ -54,7 +52,12 @@ const ChatPage = () => {
   // Get conversation details
   // ============================================
   const { data: conversations, isLoading } = useConversations();
-  const conversation = conversations?.find((c) => c.id === conversationId);
+
+  // ✅ پیدا کردن مکالمه با ID
+  const conversation = conversations?.find((c) => {
+    console.log(`🔍 Checking conversation: ${c.id} === ${conversationId}`);
+    return c.id === conversationId;
+  });
 
   // ============================================
   // Render
@@ -74,21 +77,36 @@ const ChatPage = () => {
     );
   }
 
-  if (!conversation) {
+  // ✅ اگر مکالمه پیدا نشد
+  if (!conversation || !conversationId) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-[calc(100vh-200px)]">
-          <div className="text-center">
-            <p className="text-4xl mb-2">🔍</p>
-            <p className="text-[rgb(var(--muted-foreground))]">
-              Conversation not found
+        <div className="flex flex-col items-center justify-center h-[calc(100vh-200px)]">
+          <div className="text-center max-w-md">
+            <p className="text-6xl mb-4">🔍</p>
+            <h2 className="text-2xl font-bold mb-2">Conversation Not Found</h2>
+            <p className="text-[rgb(var(--muted-foreground))] mb-2">
+              Conversation ID: {conversationId || "Unknown"}
             </p>
-            <Link
-              href="/dashboard/messages"
-              className="text-primary-500 hover:underline mt-2 inline-block"
-            >
-              ← Back to messages
-            </Link>
+            <p className="text-[rgb(var(--muted-foreground))] mb-6">
+              The conversation you're looking for doesn't exist or you don't
+              have access to it.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Link
+                href="/dashboard/messages"
+                className="btn-primary inline-flex items-center gap-2"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back to Messages
+              </Link>
+              <Link
+                href="/vehicles"
+                className="btn-outline inline-flex items-center gap-2"
+              >
+                Browse Vehicles
+              </Link>
+            </div>
           </div>
         </div>
       </DashboardLayout>
@@ -106,20 +124,11 @@ const ChatPage = () => {
     model: conversation.car_model,
   };
 
+  console.log("✅ Rendering chat for conversation:", conversationId);
+
   return (
     <DashboardLayout>
-      <div className="h-[calc(100vh-200px)] bg-[rgb(var(--background))] rounded-xl border border-[rgb(var(--border))] overflow-hidden relative">
-        {/* ===== Back Button inside chat ===== */}
-        <div className="absolute top-4 left-4 z-10">
-          <button
-            onClick={handleBack}
-            className="p-2 bg-[rgb(var(--card))] rounded-full shadow-lg hover:bg-[rgb(var(--muted))] transition-all duration-200 hover:scale-95 border border-[rgb(var(--border))]"
-            aria-label="Go back"
-          >
-            <ArrowLeft className="w-5 h-5 text-[rgb(var(--foreground))]" />
-          </button>
-        </div>
-
+      <div className="h-[calc(100vh-200px)] bg-[rgb(var(--background))] rounded-xl border border-[rgb(var(--border))] overflow-hidden">
         <ChatWindow
           conversationId={conversationId}
           otherUser={otherUser}
