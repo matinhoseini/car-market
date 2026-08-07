@@ -4,16 +4,13 @@ import { useAuthStore } from "../../store/authStore";
 
 const MessageBubble = ({
   message,
-  showAvatar = true, // Whether to show avatar (only for first message in group)
-  showName = true, // Whether to show sender name (only for first message in group)
-  isFirstInGroup = true, // Whether this is the first message from this sender
+  showAvatar = true, // ✅ Default: true
+  showName = true, // ✅ Default: true
+  isFirstInGroup = true,
 }) => {
   const { user } = useAuthStore();
   const isOwn = message.sender === user?.id;
 
-  // ============================================
-  // Format time (English - 12-hour with AM/PM)
-  // ============================================
   const formatTime = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleTimeString("en-US", {
@@ -33,7 +30,7 @@ const MessageBubble = ({
           </div>
         )}
 
-        {/* ===== Empty space for alignment (OTHER users without avatar) ===== */}
+        {/* ===== Empty space for alignment ===== */}
         {!isOwn && !showAvatar && <div className="w-8 h-8 flex-shrink-0"></div>}
 
         <div
@@ -43,7 +40,7 @@ const MessageBubble = ({
               : "bg-gray-200 text-gray-800 rounded-bl-none"
           }`}
         >
-          {/* ===== Sender name (ONLY for other users' messages) ===== */}
+          {/* ===== Sender name (ONLY for other users' messages - first in group) ===== */}
           {!isOwn && showName && (
             <p className="text-[10px] sm:text-xs font-semibold text-gray-600 mb-0.5 sm:mb-1">
               {message.sender_username || "User"}
