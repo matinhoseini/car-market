@@ -1,4 +1,3 @@
-// app/vehicles/page.jsx
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
@@ -20,6 +19,7 @@ import {
   GEARBOX_TYPES,
   YEARS,
   ORDER_OPTIONS,
+  CITIES,
 } from "../../helpers/constants";
 
 // ===== Loading component =====
@@ -35,16 +35,17 @@ const Loading = () => (
   </div>
 );
 
-// ===== Initial filter state =====
+// ===== Initial filter state (Backend supported) =====
 const INITIAL_FILTERS = {
   brand: "",
-  min_price: "",
-  max_price: "",
-  fuel_type: "",
-  year: "",
-  gearbox: "",
+  price_min: "", // ✅ Changed from min_price
+  price_max: "", // ✅ Changed from max_price
+  fuel_type: "", // ✅ Changed from fuel_type (was correct)
+  year_min: "", // ✅ Changed from year
+  year_max: "", // ✅ Added year_max
+  gearbox: "", // ✅ Changed from gearbox (was correct)
   city: "",
-  ordering: "",
+  ordering: "-created_at", // ✅ Changed from empty string
 };
 
 export default function VehiclesPage() {
@@ -62,7 +63,7 @@ export default function VehiclesPage() {
 
   // ===== Memoized computed values =====
   const hasFilters = useMemo(() => {
-    return Object.values(filters).some((v) => v !== "");
+    return Object.values(filters).some((v) => v !== "" && v !== "-created_at");
   }, [filters]);
 
   // ===== Memoized filter options =====
@@ -70,18 +71,32 @@ export default function VehiclesPage() {
   const gearboxTypes = useMemo(() => GEARBOX_TYPES, []);
   const years = useMemo(() => YEARS, []);
   const orderOptions = useMemo(() => ORDER_OPTIONS, []);
+  const cities = useMemo(() => CITIES, []);
 
-  // ===== Build query filters =====
+  // ===== Build query filters (Backend compatible) =====
   const buildFilters = useCallback(() => {
-    const allFilters = { ...filters, page: currentPage };
+    // ✅ Start with filters (without page)
+    const allFilters = { ...filters };
+
+    // ✅ Add search if exists
     if (debouncedSearch) {
       allFilters.search = debouncedSearch;
     }
-    return Object.fromEntries(
+
+    // ✅ Remove empty values
+    const cleanFilters = Object.fromEntries(
       Object.entries(allFilters).filter(
         ([_, v]) => v !== "" && v !== null && v !== undefined,
       ),
     );
+
+    // ✅ Add pagination (backend uses offset/limit, not page)
+    // If your backend supports page, use it; otherwise use offset
+    // cleanFilters.page = currentPage;
+    cleanFilters.limit = 40;
+    cleanFilters.offset = (currentPage - 1) * 40;
+
+    return cleanFilters;
   }, [filters, debouncedSearch, currentPage]);
 
   // ===== Fetch cars =====
@@ -113,7 +128,7 @@ export default function VehiclesPage() {
   // ===== Handlers =====
   const changeFilter = useCallback((key, value) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
-    setCurrentPage(1); // Reset to first page on filter change
+    setCurrentPage(1);
   }, []);
 
   const clearAll = useCallback(() => {
@@ -168,31 +183,31 @@ export default function VehiclesPage() {
             />
           </div>
 
-          {/* Min Price */}
+          {/* Min Price - ✅ Changed to price_min */}
           <div>
-            <label className="label text-xs">Min Price</label>
+            <label className="label text-xs">Min Price ($)</label>
             <input
               type="number"
               placeholder="Min price"
-              value={filters.min_price}
-              onChange={(e) => changeFilter("min_price", e.target.value)}
+              value={filters.price_min}
+              onChange={(e) => changeFilter("price_min", e.target.value)}
               className="input py-1.5 text-sm"
             />
           </div>
 
-          {/* Max Price */}
+          {/* Max Price - ✅ Changed to price_max */}
           <div>
-            <label className="label text-xs">Max Price</label>
+            <label className="label text-xs">Max Price ($)</label>
             <input
               type="number"
               placeholder="Max price"
-              value={filters.max_price}
-              onChange={(e) => changeFilter("max_price", e.target.value)}
+              value={filters.price_max}
+              onChange={(e) => changeFilter("price_max", e.target.value)}
               className="input py-1.5 text-sm"
             />
           </div>
 
-          {/* Fuel Type */}
+          {/* Fuel Type - ✅ Changed to fuel_type */}
           <div>
             <label className="label text-xs">Fuel Type</label>
             <select
@@ -209,9 +224,9 @@ export default function VehiclesPage() {
             </select>
           </div>
 
-          {/* Gearbox */}
+          {/* Gearbox - ✅ Changed to gearbox */}
           <div>
-            <label className="label text-xs">Gearbox</label>
+            <label className="label text-xs">Transmission</label>
             <select
               value={filters.gearbox}
               onChange={(e) => changeFilter("gearbox", e.target.value)}
@@ -226,15 +241,32 @@ export default function VehiclesPage() {
             </select>
           </div>
 
-          {/* Year */}
+          {/* Year Min - ✅ Added */}
           <div>
-            <label className="label text-xs">Year</label>
+            <label className="label text-xs">Year From</label>
             <select
-              value={filters.year}
-              onChange={(e) => changeFilter("year", e.target.value)}
+              value={filters.year_min}
+              onChange={(e) => changeFilter("year_min", e.target.value)}
               className="input py-1.5 text-sm"
             >
-              <option value="">All years</option>
+              <option value="">Any</option>
+              {years.map((y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Year Max - ✅ Added */}
+          <div>
+            <label className="label text-xs">Year To</label>
+            <select
+              value={filters.year_max}
+              onChange={(e) => changeFilter("year_max", e.target.value)}
+              className="input py-1.5 text-sm"
+            >
+              <option value="">Any</option>
               {years.map((y) => (
                 <option key={y} value={y}>
                   {y}
@@ -246,13 +278,18 @@ export default function VehiclesPage() {
           {/* City */}
           <div>
             <label className="label text-xs">City</label>
-            <input
-              type="text"
-              placeholder="e.g. Tehran"
+            <select
               value={filters.city}
               onChange={(e) => changeFilter("city", e.target.value)}
               className="input py-1.5 text-sm"
-            />
+            >
+              <option value="">All Cities</option>
+              {cities.map((city) => (
+                <option key={city} value={city}>
+                  {city}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
@@ -275,6 +312,7 @@ export default function VehiclesPage() {
     fuelTypes,
     gearboxTypes,
     years,
+    cities,
   ]);
 
   // ===== Pagination component =====
@@ -296,7 +334,6 @@ export default function VehiclesPage() {
 
     return (
       <div className="flex justify-center items-center gap-2 mt-8">
-        {/* Previous */}
         <button
           onClick={() => handlePageChange(currentPage - 1)}
           disabled={currentPage === 1}
@@ -310,7 +347,6 @@ export default function VehiclesPage() {
           <ChevronLeft className="w-4 h-4" />
         </button>
 
-        {/* First page */}
         {start > 1 && (
           <>
             <button
@@ -323,7 +359,6 @@ export default function VehiclesPage() {
           </>
         )}
 
-        {/* Page numbers */}
         {pages.map((page) => (
           <button
             key={page}
@@ -338,7 +373,6 @@ export default function VehiclesPage() {
           </button>
         ))}
 
-        {/* Last page */}
         {end < totalPages && (
           <>
             {end < totalPages - 1 && <span className="px-2">...</span>}
@@ -351,7 +385,6 @@ export default function VehiclesPage() {
           </>
         )}
 
-        {/* Next */}
         <button
           onClick={() => handlePageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
