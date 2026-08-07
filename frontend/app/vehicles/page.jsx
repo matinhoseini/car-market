@@ -69,14 +69,16 @@ export default function VehiclesPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   // ============================================
-  // Sync filters with URL params
+  // Sync filters with URL params - FIXED
   // ============================================
   useEffect(() => {
     const params = new URLSearchParams(searchParams);
     const urlFilters = { ...INITIAL_FILTERS };
 
+    // Read filters from URL
     Object.keys(urlFilters).forEach((key) => {
       const value = params.get(key);
       if (value) {
@@ -84,27 +86,35 @@ export default function VehiclesPage() {
       }
     });
 
+    // Read search from URL
     const searchValue = params.get("search");
     if (searchValue) {
       setSearch(searchValue);
     }
 
+    // Read page from URL
     const page = params.get("page");
     if (page) {
       setCurrentPage(parseInt(page));
     }
 
+    console.log("📥 URL Filters loaded:", JSON.stringify(urlFilters));
     setFilters(urlFilters);
+
+    // ✅ بعد از لود فیلترها از URL، fetch رو اجرا کن
+    setIsInitialLoad(true);
   }, [searchParams]);
 
   // ============================================
-  // Update URL when filters change
+  // Update URL when filters change - FIXED
   // ============================================
   const updateURL = useCallback(() => {
     const params = new URLSearchParams();
 
+    // Add search
     if (search) params.set("search", search);
 
+    // Add filters
     Object.keys(filters).forEach((key) => {
       const value = filters[key];
       if (value && value !== "" && value !== "-created_at") {
@@ -112,11 +122,13 @@ export default function VehiclesPage() {
       }
     });
 
+    // Add page
     if (currentPage > 1) {
       params.set("page", currentPage.toString());
     }
 
     const url = `/vehicles?${params.toString()}`;
+    console.log("🔄 Updating URL:", url);
     router.replace(url, { scroll: false });
   }, [router, filters, search, currentPage]);
 
@@ -124,8 +136,10 @@ export default function VehiclesPage() {
   // Update URL when filters/search/page change
   // ============================================
   useEffect(() => {
-    updateURL();
-  }, [updateURL]);
+    if (!isInitialLoad) {
+      updateURL();
+    }
+  }, [updateURL, isInitialLoad]);
 
   // ============================================
   // Debounce search
@@ -149,11 +163,12 @@ export default function VehiclesPage() {
   const cities = useMemo(() => CITIES, []);
 
   // ============================================
-  // Build query filters (Backend compatible)
+  // Build query filters (Backend compatible) - FIXED
   // ============================================
   const buildFilters = useCallback(() => {
     const allFilters = { ...filters };
 
+    // Add search if exists
     if (debouncedSearch) {
       allFilters.search = debouncedSearch;
     }
@@ -179,17 +194,17 @@ export default function VehiclesPage() {
   }, [filters, debouncedSearch, currentPage]);
 
   // ============================================
-  // Fetch cars
+  // Fetch cars - FIXED
   // ============================================
   const fetchCars = useCallback(async () => {
     setLoading(true);
     try {
       const cleanFilters = buildFilters();
-      console.log("🚗 Fetching with filters:", JSON.stringify(cleanFilters));
+      console.log("🚗 Sending to service:", JSON.stringify(cleanFilters));
 
       const data = await vehiclesService.getAllCars(cleanFilters);
 
-      console.log("✅ Cars fetched:", JSON.stringify(data));
+      console.log("✅ API Response count:", data.count);
 
       setCars(data.results || []);
       setTotalCount(data.count || 0);
@@ -201,16 +216,17 @@ export default function VehiclesPage() {
       setTotalPages(1);
     } finally {
       setLoading(false);
+      setIsInitialLoad(false);
     }
   }, [buildFilters]);
 
   // ============================================
-  // Fetch on filter/search/page change
+  // Fetch on initial load and filter changes
   // ============================================
   useEffect(() => {
-    console.log("🔄 useEffect triggered - fetching cars...");
+    console.log("🔄 Fetching cars... (initialLoad:", isInitialLoad, ")");
     fetchCars();
-  }, [fetchCars]);
+  }, [fetchCars, isInitialLoad]);
 
   // ============================================
   // Handlers

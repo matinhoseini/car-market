@@ -46,10 +46,9 @@ async function getFeaturedVehicles() {
   try {
     console.log("🔄 Fetching featured vehicles...");
 
-    // ✅ فقط ۳ ماشین دریافت میشود
     const data = await vehiclesService.getAllCars({
       limit: 3, // فقط ۳ تا
-      ordering: "-created_at", // جدیدترین‌ها
+      ordering: "-created_at", //
     });
 
     console.log("✅ Raw API response:", data);
@@ -64,7 +63,6 @@ async function getFeaturedVehicles() {
       vehicles = [data];
     }
 
-    // ✅ مطمئن میشویم که فقط ۳ ماشین برگردانده شود
     const limitedVehicles = vehicles.slice(0, 3);
 
     console.log(
@@ -308,8 +306,8 @@ export default async function HomePage() {
                 </Link>
               </div>
             </div>
-
             {/* Right Side - Search Box (Client Component) */}
+
             <SearchBox countries={countries} priceRanges={priceRanges} />
           </div>
         </div>
@@ -347,7 +345,6 @@ export default async function HomePage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {/* ✅ فقط ۳ ماشین اول نمایش داده میشوند */}
               {featuredVehicles.slice(0, 3).map((vehicle, index) => {
                 console.log(`Vehicle ${index + 1}:`, vehicle);
 
