@@ -14,9 +14,10 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
   const messagesEndRef = useRef(null);
   const containerRef = useRef(null);
 
-  // ✅ Track sent message IDs to prevent duplicates
+  // ✅ Track sent message IDs
   const sentMessageIds = useRef(new Set());
-  const optimisticMessageIds = useRef(new Set());
+  // ✅ Track optimistic messages to replace with real ones
+  const optimisticMessageRef = useRef(null);
 
   // ============================================
   // Load messages with infinite scroll
@@ -34,12 +35,23 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
         console.log("📩 New message received:", newMessage);
 
         setMessages((prev) => {
-          // ✅ Check if message already exists
-          if (prev.some((msg) => msg.id === newMessage.id)) {
-            console.log("⚠️ Duplicate message blocked:", newMessage.id);
-            return prev;
+          // ✅ Remove optimistic message if it exists
+          let updatedMessages = prev;
+          if (optimisticMessageRef.current) {
+            console.log("🔄 Replacing optimistic message with real one");
+            updatedMessages = prev.filter(
+              (msg) => msg.id !== optimisticMessageRef.current,
+            );
+            optimisticMessageRef.current = null;
           }
-          return [...prev, newMessage];
+
+          // ✅ Check if message already exists
+          if (updatedMessages.some((msg) => msg.id === newMessage.id)) {
+            console.log("⚠️ Duplicate message blocked:", newMessage.id);
+            return updatedMessages;
+          }
+
+          return [...updatedMessages, newMessage];
         });
 
         if (isAtBottom) {
@@ -101,7 +113,7 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
   }, [messages, getDateKey]);
 
   // ============================================
-  // Group messages by sender (like Telegram)
+  // ✅ Group messages by sender (like Telegram)
   // ============================================
   const groupedBySender = useCallback((dateMessages) => {
     const groups = [];
@@ -165,7 +177,7 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
   }, [isLoading, messages.length, scrollToBottom]);
 
   // ============================================
-  // Handle send message - Fixed duplicate prevention
+  // Handle send message - with optimistic replacement
   // ============================================
   const handleSend = useCallback(
     (text) => {
@@ -208,6 +220,9 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
             is_read: false,
           };
 
+          // ✅ Store optimistic message ID for replacement
+          optimisticMessageRef.current = tempId;
+
           console.log("📤 Adding optimistic message:", tempMessage);
 
           setMessages((prev) => {
@@ -231,12 +246,14 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
       } catch (error) {
         console.error("❌ Error sending:", error);
         toast.error("Failed to send message");
+        // ✅ Clear optimistic message on error
+        optimisticMessageRef.current = null;
       } finally {
-        // ✅ Clean up after 3 seconds
+        // ✅ Clean up after 5 seconds
         setTimeout(() => {
           sentMessageIds.current.delete(tempId);
           console.log("🔓 Send lock released for:", tempId);
-        }, 3000);
+        }, 5000);
       }
     },
     [sendMessage, scrollToBottom, isConnected],
