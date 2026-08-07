@@ -1,4 +1,3 @@
-// components/SearchBox.jsx
 "use client";
 
 // ============================================
@@ -18,13 +17,17 @@ const SearchBox = ({ countries, priceRanges }) => {
   const [selectedCity, setSelectedCity] = useState("");
   const [priceRange, setPriceRange] = useState("");
 
+  // ============================================
   // Get cities based on selected country
+  // ============================================
   const getCities = () => {
     const country = countries.find((c) => c.value === selectedCountry);
     return country ? country.cities : [];
   };
 
+  // ============================================
   // Clear all filters
+  // ============================================
   const clearFilters = () => {
     setSelectedCountry("");
     setSelectedCity("");
@@ -32,20 +35,30 @@ const SearchBox = ({ countries, priceRanges }) => {
     setSearchQuery("");
   };
 
+  // ============================================
   // Handle search form submission
+  // ============================================
   const handleSearch = (e) => {
     e.preventDefault();
     const params = new URLSearchParams();
+
+    // ✅ Backend supported filters
     if (searchQuery) params.append("search", searchQuery);
-    if (selectedCountry) params.append("country", selectedCountry);
     if (selectedCity) params.append("city", selectedCity);
     if (priceRange) params.append("price_max", priceRange);
+
+    // ❌ country is not supported by backend
+    // If you need country filter, it must be added to backend
 
     router.push(`/vehicles?${params.toString()}`);
   };
 
+  // ============================================
+  // 🎨 Render
+  // ============================================
   return (
     <div className="card p-6 md:p-8 shadow-xl">
+      {/* Header */}
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-xl font-bold">🔍 Search Cars</h3>
         {(selectedCountry || selectedCity || priceRange || searchQuery) && (
