@@ -77,7 +77,6 @@ const ChatPage = () => {
     );
   }
 
-  // ✅ اگر مکالمه پیدا نشد
   if (!conversation || !conversationId) {
     return (
       <DashboardLayout>
