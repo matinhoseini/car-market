@@ -1,4 +1,3 @@
-// app/layout.jsx
 "use client";
 
 import "./globals.css";
@@ -42,17 +41,13 @@ const poppins = localFont({
   variable: "--font-poppins",
 });
 
-// ===== Metadata (Only works in Server Components) =====
-// Since we're using "use client", metadata is not supported
-// Move this to a separate server component or use next/head
-
 export default function RootLayout({ children }) {
   const [queryClient] = useState(
     () =>
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 5 * 60 * 1000, // 5 minutes
+            staleTime: 5 * 60 * 1000,
             refetchOnWindowFocus: false,
           },
         },
@@ -65,6 +60,37 @@ export default function RootLayout({ children }) {
       suppressHydrationWarning
       className={`${inter.variable} ${poppins.variable}`}
     >
+      <head>
+        {/* ===== Favicon ===== */}
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link
+          rel="icon"
+          type="image/png"
+          sizes="32x32"
+          href="/favicon-32x32.png"
+        />
+        <link
+          rel="icon"
+          type="image/png"
+          sizes="16x16"
+          href="/favicon-16x16.png"
+        />
+        <link
+          rel="apple-touch-icon"
+          sizes="180x180"
+          href="/apple-touch-icon.png"
+        />
+        <link rel="manifest" href="/site.webmanifest" />
+
+        {/* ===== Meta Tags ===== */}
+        <meta charSet="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>CarMarket - Find Your Dream Car</title>
+        <meta
+          name="description"
+          content="The best marketplace for buying and selling cars"
+        />
+      </head>
       <body>
         <QueryClientProvider client={queryClient}>
           <div className="min-h-screen flex flex-col">
@@ -75,7 +101,6 @@ export default function RootLayout({ children }) {
             <Footer />
           </div>
 
-          {/* ===== Toaster ===== */}
           <Toaster
             position="top-right"
             toastOptions={{
