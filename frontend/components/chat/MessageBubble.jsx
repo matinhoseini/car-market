@@ -10,9 +10,16 @@ const MessageBubble = ({
 }) => {
   const { user } = useAuthStore();
 
-  // ✅ بررسی هر دو حالت sender و sender_id
-  const senderId = message.sender || message.sender_id;
+  // ✅ استفاده از sender_id که در useMessages اضافه شد
+  const senderId = message.sender_id || message.sender;
   const isOwn = senderId === user?.id;
+
+  console.log("🔍 MessageBubble:", {
+    senderId,
+    userId: user?.id,
+    isOwn,
+    username: message.sender_username,
+  });
 
   const formatTime = (dateString) => {
     const date = new Date(dateString);
@@ -26,24 +33,22 @@ const MessageBubble = ({
   return (
     <div className={`flex ${isOwn ? "justify-end" : "justify-start"} mb-0.5`}>
       <div className="flex items-end gap-2 max-w-[85%] sm:max-w-[75%]">
-        {/* ===== Avatar (only for OTHER users - first message in group) ===== */}
+        {/* ===== Avatar ===== */}
         {!isOwn && showAvatar && (
           <div className="w-8 h-8 rounded-full bg-gradient-to-r from-primary-500 to-accent-500 flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
             {message.sender_username?.charAt(0).toUpperCase() || "U"}
           </div>
         )}
 
-        {/* ===== Empty space for alignment ===== */}
         {!isOwn && !showAvatar && <div className="w-8 h-8 flex-shrink-0"></div>}
 
         <div
           className={`rounded-2xl px-3 py-1.5 sm:px-4 sm:py-2 ${
             isOwn
-              ? "bg-blue-500 text-white rounded-br-none" // ✅ Own: Blue
-              : "bg-green-500 text-white rounded-bl-none" // ✅ Other: Green
+              ? "bg-blue-500 text-white rounded-br-none"
+              : "bg-green-500 text-white rounded-bl-none"
           }`}
         >
-          {/* ===== Sender name (ONLY for other users - first in group) ===== */}
           {!isOwn && showName && (
             <p className="text-[10px] sm:text-xs font-semibold text-white/80 mb-0.5 sm:mb-1">
               {message.sender_username || "User"}

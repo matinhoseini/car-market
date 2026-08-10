@@ -1,26 +1,25 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-// ============================================
-// 📦 Auth Store with Zustand
-// ============================================
 const useAuthStore = create(
   persist(
     (set, get) => ({
-      // ===== State =====
       user: null,
       token: null,
       isAuthenticated: false,
       isLoading: false,
 
-      // ===== Actions =====
-      setUser: (user) => set({ user, isAuthenticated: !!user }),
+      setUser: (user) => {
+        console.log("👤 Setting user:", user);
+        set({ user, isAuthenticated: !!user });
+      },
 
       setToken: (token) => set({ token }),
 
       setLoading: (isLoading) => set({ isLoading }),
 
       login: (user, token) => {
+        console.log("🔐 Login:", { user, token });
         set({
           user,
           token,
@@ -32,6 +31,7 @@ const useAuthStore = create(
       },
 
       logout: () => {
+        console.log("🚪 Logout");
         set({
           user: null,
           token: null,
@@ -51,16 +51,28 @@ const useAuthStore = create(
     }),
     {
       name: "auth-storage",
-      getStorage: () => {
-        if (typeof window !== "undefined") {
-          return localStorage;
-        }
-        return undefined;
+      storage: {
+        getItem: (key) => {
+          if (typeof window !== "undefined") {
+            const value = localStorage.getItem(key);
+            return value ? JSON.parse(value) : null;
+          }
+          return null;
+        },
+        setItem: (key, value) => {
+          if (typeof window !== "undefined") {
+            localStorage.setItem(key, JSON.stringify(value));
+          }
+        },
+        removeItem: (key) => {
+          if (typeof window !== "undefined") {
+            localStorage.removeItem(key);
+          }
+        },
       },
     },
   ),
 );
 
 export default useAuthStore;
-
 export { useAuthStore };

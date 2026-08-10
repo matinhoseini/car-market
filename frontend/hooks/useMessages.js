@@ -1,4 +1,3 @@
-// hooks/useMessages.js
 import {
   useInfiniteQuery,
   useMutation,
@@ -35,6 +34,19 @@ export const useMessages = (conversationId) => {
     },
     enabled: !!conversationId,
     staleTime: 2 * 60 * 1000,
+    // ✅ Transform data to ensure sender_id exists
+    select: (data) => {
+      return {
+        ...data,
+        pages: data.pages.map((page) => ({
+          ...page,
+          results: page.results.map((msg) => ({
+            ...msg,
+            sender_id: msg.sender || msg.sender_id || msg.user_id,
+          })),
+        })),
+      };
+    },
   });
 };
 
