@@ -9,7 +9,10 @@ const MessageBubble = ({
   isFirstInGroup = true,
 }) => {
   const { user } = useAuthStore();
-  const isOwn = message.sender === user?.id;
+
+  // ✅ بررسی هر دو حالت sender و sender_id
+  const senderId = message.sender || message.sender_id;
+  const isOwn = senderId === user?.id;
 
   const formatTime = (dateString) => {
     const date = new Date(dateString);
@@ -30,19 +33,19 @@ const MessageBubble = ({
           </div>
         )}
 
-        {/* ===== Empty space for alignment (OTHER users without avatar) ===== */}
+        {/* ===== Empty space for alignment ===== */}
         {!isOwn && !showAvatar && <div className="w-8 h-8 flex-shrink-0"></div>}
 
         <div
           className={`rounded-2xl px-3 py-1.5 sm:px-4 sm:py-2 ${
             isOwn
-              ? "bg-blue-500 text-white rounded-br-none"
-              : "bg-gray-200 text-gray-800 rounded-bl-none"
+              ? "bg-blue-500 text-white rounded-br-none" // ✅ Own: Blue
+              : "bg-green-500 text-white rounded-bl-none" // ✅ Other: Green
           }`}
         >
           {/* ===== Sender name (ONLY for other users - first in group) ===== */}
           {!isOwn && showName && (
-            <p className="text-[10px] sm:text-xs font-semibold text-gray-600 mb-0.5 sm:mb-1">
+            <p className="text-[10px] sm:text-xs font-semibold text-white/80 mb-0.5 sm:mb-1">
               {message.sender_username || "User"}
             </p>
           )}
@@ -58,7 +61,7 @@ const MessageBubble = ({
           >
             <p
               className={`text-[8px] sm:text-[10px] ${
-                isOwn ? "text-blue-100" : "text-gray-500"
+                isOwn ? "text-blue-100" : "text-green-100"
               }`}
             >
               {formatTime(message.created_at)}
