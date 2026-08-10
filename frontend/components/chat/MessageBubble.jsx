@@ -10,21 +10,8 @@ const MessageBubble = ({
 }) => {
   const { user } = useAuthStore();
 
-  // ✅ لاگ کامل از user
-  console.log("👤 Full user object:", user);
-  console.log("👤 user?.id:", user?.id);
-  console.log("👤 user?.username:", user?.username);
-  console.log("📩 message:", message);
-
   const senderId = message.sender_id || message.sender;
   const isOwn = senderId === user?.id;
-
-  console.log("🔍 MessageBubble:", {
-    senderId,
-    userId: user?.id,
-    isOwn,
-    username: message.sender_username,
-  });
 
   const formatTime = (dateString) => {
     const date = new Date(dateString);
@@ -37,14 +24,13 @@ const MessageBubble = ({
 
   return (
     <div className={`flex ${isOwn ? "justify-end" : "justify-start"} mb-0.5`}>
-      <div className="flex items-end gap-2 max-w-[85%] sm:max-w-[75%]">
-        {!isOwn && showAvatar && (
-          <div className="w-8 h-8 rounded-full bg-gradient-to-r from-primary-500 to-accent-500 flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
-            {message.sender_username?.charAt(0).toUpperCase() || "U"}
-          </div>
-        )}
-
-        {!isOwn && !showAvatar && <div className="w-8 h-8 flex-shrink-0"></div>}
+      <div
+        className={`flex items-end gap-1.5 max-w-[85%] sm:max-w-[75%] ${isOwn ? "flex-row-reverse" : ""}`}
+      >
+        {/* ===== Avatar (نمایش برای هر دو طرف) ===== */}
+        <div className="w-6 h-6 rounded-full bg-gradient-to-r from-primary-500 to-accent-500 flex items-center justify-center text-white font-bold text-[10px] flex-shrink-0">
+          {message.sender_username?.charAt(0).toUpperCase() || "U"}
+        </div>
 
         <div
           className={`rounded-2xl px-3 py-1.5 sm:px-4 sm:py-2 ${
@@ -53,6 +39,7 @@ const MessageBubble = ({
               : "bg-green-500 text-white rounded-bl-none"
           }`}
         >
+          {/* ===== Sender name (فقط برای پیام‌های دیگران) ===== */}
           {!isOwn && showName && (
             <p className="text-[10px] sm:text-xs font-semibold text-white/80 mb-0.5 sm:mb-1">
               {message.sender_username || "User"}
