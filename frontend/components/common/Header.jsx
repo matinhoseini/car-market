@@ -19,21 +19,52 @@ import {
 import DarkToggle from "./DarkToggle";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../hooks/useAuth";
+import useAuthStore from "../../store/authStore";
 
 // ============================================
-// 📦 Header Component with useAuth
+// Header Component with useAuth
 // ============================================
 const Header = memo(() => {
   const router = useRouter();
-  const { user, loading, logout } = useAuth();
+  const { user: authUser, loading, logout } = useAuth();
+  const { user: storeUser, setUser } = useAuthStore();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
   const userMenuRef = useRef(null);
 
+  // Use user from store (priority)
+  const user = storeUser || authUser;
+
+  // Sync user from useAuth to useAuthStore
+  useEffect(() => {
+    if (authUser && !storeUser) {
+      console.log("🔄 Syncing user from useAuth to useAuthStore:", authUser);
+      setUser(authUser);
+    }
+  }, [authUser, storeUser, setUser]);
+
+  // Load user from localStorage if store is empty
+  useEffect(() => {
+    if (!storeUser && !authUser) {
+      try {
+        const stored = localStorage.getItem("auth-storage");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed.state?.user) {
+            console.log("🔄 Loaded user from localStorage:", parsed.state.user);
+            setUser(parsed.state.user);
+          }
+        }
+      } catch (e) {
+        console.error("Error loading user from localStorage:", e);
+      }
+    }
+  }, [storeUser, authUser, setUser]);
+
   // ============================================
-  // 📋 Memoized navigation items - Home, Vehicles, About, Dashboard in header
+  // Navigation items - Home, Vehicles, About, Dashboard
   // ============================================
   const navItems = useMemo(
     () => [
@@ -46,7 +77,7 @@ const Header = memo(() => {
   );
 
   // ============================================
-  // 📋 Protected items - Only in user menu (desktop & mobile)
+  // Protected items - Only in user menu
   // ============================================
   const protectedMenuItems = useMemo(
     () => [
@@ -63,7 +94,7 @@ const Header = memo(() => {
   );
 
   // ============================================
-  // 📍 Check if link is active
+  // Check if link is active
   // ============================================
   const isActive = useCallback((href) => {
     if (typeof window === "undefined") return false;
@@ -74,7 +105,7 @@ const Header = memo(() => {
   }, []);
 
   // ============================================
-  // 🖱️ Control header visibility on scroll
+  // Control header visibility on scroll
   // ============================================
   useEffect(() => {
     const controlHeader = () => {
@@ -92,7 +123,7 @@ const Header = memo(() => {
   }, [lastScrollY]);
 
   // ============================================
-  // 🔒 Close user menu when clicking outside
+  // Close user menu when clicking outside
   // ============================================
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -105,7 +136,7 @@ const Header = memo(() => {
   }, []);
 
   // ============================================
-  // 🔒 Lock body scroll when mobile menu is open
+  // Lock body scroll when mobile menu is open
   // ============================================
   useEffect(() => {
     if (isMenuOpen) {
@@ -119,7 +150,7 @@ const Header = memo(() => {
   }, [isMenuOpen]);
 
   // ============================================
-  // 🎯 Toggle menu handlers
+  // Toggle menu handlers
   // ============================================
   const toggleMenu = useCallback(() => {
     setIsMenuOpen((prev) => !prev);
@@ -130,7 +161,7 @@ const Header = memo(() => {
   }, []);
 
   // ============================================
-  // 🚪 Handle logout click
+  // Handle logout click
   // ============================================
   const handleLogoutClick = useCallback(() => {
     logout();
@@ -139,7 +170,7 @@ const Header = memo(() => {
   }, [logout]);
 
   // ============================================
-  // ⏳ Loading state
+  // Loading state
   // ============================================
   if (loading) {
     return (
@@ -156,7 +187,7 @@ const Header = memo(() => {
   }
 
   // ============================================
-  // 🎨 Render
+  // Render
   // ============================================
   return (
     <>
@@ -182,7 +213,7 @@ const Header = memo(() => {
               </span>
             </Link>
 
-            {/* ===== Desktop Navigation - Home, Vehicles, About, Dashboard ===== */}
+            {/* ===== Desktop Navigation ===== */}
             <nav className="hidden lg:flex items-center gap-1">
               {navItems.map((item) => {
                 const active = isActive(item.href);
@@ -224,7 +255,7 @@ const Header = memo(() => {
                     </span>
                   </button>
 
-                  {/* ===== Desktop User Menu (Protected Items) ===== */}
+                  {/* ===== Desktop User Menu ===== */}
                   {isUserMenuOpen && (
                     <div className="absolute right-0 mt-2 w-56 bg-[rgb(var(--card))] rounded-xl shadow-xl border border-[rgb(var(--border))] py-2 z-[9999] animate-fade-in">
                       <div className="px-4 py-2 border-b border-[rgb(var(--border))]">
@@ -286,7 +317,7 @@ const Header = memo(() => {
                 </div>
               )}
 
-              {/* ===== Mobile Menu Button (Hamburger) ===== */}
+              {/* ===== Mobile Menu Button ===== */}
               <button
                 onClick={toggleMenu}
                 className="lg:hidden p-1.5 md:p-2 rounded-lg hover:bg-[rgb(var(--muted))] transition-all duration-200 hover:scale-95 relative z-[9999]"

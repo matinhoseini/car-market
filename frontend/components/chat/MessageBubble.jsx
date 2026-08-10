@@ -10,7 +10,12 @@ const MessageBubble = ({
 }) => {
   const { user } = useAuthStore();
 
-  // ✅ استفاده از sender_id که در useMessages اضافه شد
+  // ✅ لاگ کامل از user
+  console.log("👤 Full user object:", user);
+  console.log("👤 user?.id:", user?.id);
+  console.log("👤 user?.username:", user?.username);
+  console.log("📩 message:", message);
+
   const senderId = message.sender_id || message.sender;
   const isOwn = senderId === user?.id;
 
@@ -33,7 +38,6 @@ const MessageBubble = ({
   return (
     <div className={`flex ${isOwn ? "justify-end" : "justify-start"} mb-0.5`}>
       <div className="flex items-end gap-2 max-w-[85%] sm:max-w-[75%]">
-        {/* ===== Avatar ===== */}
         {!isOwn && showAvatar && (
           <div className="w-8 h-8 rounded-full bg-gradient-to-r from-primary-500 to-accent-500 flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
             {message.sender_username?.charAt(0).toUpperCase() || "U"}
