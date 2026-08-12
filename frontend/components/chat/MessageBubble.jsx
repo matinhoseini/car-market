@@ -10,9 +10,11 @@ const MessageBubble = ({
 }) => {
   const { user } = useAuthStore();
 
+  // Get sender ID from message (supports both field names)
   const senderId = message.sender_id || message.sender;
   const isOwn = senderId === user?.id;
 
+  // Format time in 12-hour format with AM/PM
   const formatTime = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleTimeString("en-US", {
@@ -27,7 +29,7 @@ const MessageBubble = ({
       <div
         className={`flex items-end gap-1.5 max-w-[85%] sm:max-w-[75%] ${isOwn ? "flex-row-reverse" : ""}`}
       >
-        {/* ===== Avatar (only for last message in group) ===== */}
+        {/* ===== Avatar (only for last message in each sender group) ===== */}
         {showAvatar && isLastInGroup ? (
           <div className="w-6 h-6 rounded-full bg-gradient-to-r from-primary-500 to-accent-500 flex items-center justify-center text-white font-bold text-[10px] flex-shrink-0">
             {message.sender_username?.charAt(0).toUpperCase() || "U"}
@@ -39,8 +41,8 @@ const MessageBubble = ({
         <div
           className={`rounded-2xl px-3 py-1.5 sm:px-4 sm:py-2 ${
             isOwn
-              ? "bg-blue-500 text-white rounded-br-none"
-              : "bg-green-500 text-white rounded-bl-none"
+              ? "bg-blue-500 text-white rounded-br-none" // Own messages: Blue
+              : "bg-green-500 text-white rounded-bl-none" // Other messages: Green
           }`}
         >
           {/* ===== Sender name (only for other users and last message in group) ===== */}
@@ -50,10 +52,12 @@ const MessageBubble = ({
             </p>
           )}
 
+          {/* ===== Message text ===== */}
           <p className="text-sm sm:text-base md:text-lg break-words whitespace-pre-wrap leading-relaxed">
             {message.text}
           </p>
 
+          {/* ===== Timestamp and read receipt ===== */}
           <div
             className={`flex items-center gap-1.5 sm:gap-2 mt-0.5 sm:mt-1 ${
               isOwn ? "justify-end" : "justify-start"
