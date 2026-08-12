@@ -36,11 +36,13 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
         console.log("📩 New message received:", newMessage);
 
         setMessages((prev) => {
+          // Check for duplicate by ID
           if (messageIdsRef.current.has(newMessage.id)) {
             console.log("⚠️ Duplicate message blocked:", newMessage.id);
             return prev;
           }
 
+          // Check for duplicate by content (within 3 seconds)
           const exists = prev.some(
             (msg) =>
               msg.text === newMessage.text &&
@@ -53,6 +55,7 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
             return prev;
           }
 
+          // Add new message and sort by timestamp
           messageIdsRef.current.add(newMessage.id);
           const newMessages = [...prev, newMessage];
           return newMessages.sort(
@@ -123,7 +126,7 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
   }, [messages, getDateKey]);
 
   // ============================================
-  // ✅ Group messages by sender (like Telegram) - FIXED
+  // Group messages by sender (like Telegram)
   // ============================================
   const groupedBySender = useCallback((dateMessages) => {
     if (!dateMessages || dateMessages.length === 0) return [];
@@ -132,8 +135,9 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
     let currentGroup = null;
 
     dateMessages.forEach((message) => {
-      const senderKey = message.sender;
+      const senderKey = message.sender_id || message.sender;
 
+      // Start new group when sender changes
       if (!currentGroup || currentGroup.sender !== senderKey) {
         currentGroup = {
           sender: senderKey,
@@ -142,6 +146,7 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
         };
         groups.push(currentGroup);
       } else {
+        // Add to existing group
         currentGroup.messages.push(message);
       }
     });
@@ -165,6 +170,7 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
         target.scrollHeight - target.scrollTop <= target.clientHeight + 50;
       setIsAtBottom(isBottom);
 
+      // Load more when scrolling to top
       if (target.scrollTop === 0 && hasNextPage && !isFetchingNextPage) {
         fetchNextPage();
       }
@@ -173,7 +179,7 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
   );
 
   // ============================================
-  // Mark as read
+  // Mark as read on mount
   // ============================================
   useEffect(() => {
     if (conversationId && messages.length > 0) {
@@ -182,7 +188,7 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
   }, [conversationId, messages.length]);
 
   // ============================================
-  // Scroll to bottom on load
+  // Scroll to bottom on initial load
   // ============================================
   useEffect(() => {
     if (!isLoading && messages.length > 0) {
@@ -191,7 +197,7 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
   }, [isLoading, messages.length, scrollToBottom]);
 
   // ============================================
-  // Handle send message
+  // Send message handler
   // ============================================
   const handleSend = useCallback(
     (text) => {
@@ -285,20 +291,22 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
             <div key={dateKey}>
               <DateHeader date={dateKey} />
 
-              {/* ✅ گروه‌بندی بر اساس فرستنده */}
+              {/* ===== Group by sender with avatar only for last message ===== */}
               {groupedBySender(dateMessages).map((group, groupIndex) => (
                 <div key={groupIndex}>
                   {group.messages.map((message, msgIndex) => {
-                    const isFirstInGroup = msgIndex === 0;
-                    const isOwn = message.sender === user?.id;
+                    const isLastInGroup =
+                      msgIndex === group.messages.length - 1;
+                    const isOwn =
+                      (message.sender_id || message.sender) === user?.id;
 
                     return (
                       <MessageBubble
                         key={message.id}
                         message={message}
-                        showAvatar={!isOwn && isFirstInGroup}
-                        showName={!isOwn && isFirstInGroup}
-                        isFirstInGroup={isFirstInGroup}
+                        showAvatar={true} // Always show avatar for last message
+                        showName={!isOwn} // Only show name for other users
+                        isLastInGroup={isLastInGroup}
                       />
                     );
                   })}
@@ -311,6 +319,7 @@ const ChatWindow = ({ conversationId, otherUser, carInfo }) => {
         <div ref={messagesEndRef} />
       </div>
 
+      {/* ===== Message Input ===== */}
       <div className="border-t border-[rgb(var(--border))] p-2 sm:p-4 bg-[rgb(var(--card))]">
         <MessageInput
           onSend={handleSend}
