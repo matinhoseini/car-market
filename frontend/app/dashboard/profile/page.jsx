@@ -32,6 +32,10 @@ export default function ProfilePage() {
   });
   const [errors, setErrors] = useState({});
 
+  const goBack = () => {
+    router.back();
+  };
+
   // ============================================
   // 🔄 Fetch user profile
   // ============================================
@@ -221,13 +225,10 @@ export default function ProfilePage() {
     <div className="min-h-[calc(100vh-80px)] bg-[rgb(var(--background))] py-8">
       <div className="container-custom max-w-3xl">
         {/* ===== Header ===== */}
-        <div className="flex items-center gap-4 mb-8">
-          <Link
-            href="/dashboard"
-            className="p-2 rounded-lg hover:bg-[rgb(var(--muted))] transition"
-          >
+        <div className="flex items-center gap-4 mb-8" onClick={() => goBack()}>
+          <p className="p-2 rounded-lg hover:bg-[rgb(var(--muted))] transition">
             <ArrowLeft className="w-5 h-5" />
-          </Link>
+          </p>
           <div>
             <h1 className="text-3xl font-bold font-heading">Profile</h1>
             <p className="text-[rgb(var(--muted-foreground))] mt-1">
@@ -401,13 +402,10 @@ export default function ProfilePage() {
         </div>
 
         {/* ===== Back to Dashboard ===== */}
-        <div className="mt-6 text-center">
-          <Link
-            href="/dashboard"
-            className="text-[rgb(var(--muted-foreground))] hover:text-[rgb(var(--foreground))] transition text-sm"
-          >
+        <div className="mt-6 text-center" onClick={() => goBack()}>
+          <p className="text-[rgb(var(--muted-foreground))] hover:text-[rgb(var(--foreground))] transition text-sm">
             ← Back to Dashboard
-          </Link>
+          </p>
         </div>
       </div>
     </div>
