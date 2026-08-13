@@ -12,17 +12,21 @@ export default function AddVehicle() {
   };
 
   return (
-    <div className="relative">
-      {/* ===== Back Button ===== */}
-      <button
-        onClick={handleBack}
-        className="absolute top-4 left-4 p-2 rounded-lg hover:bg-[rgb(var(--muted))] transition-all duration-200 hover:scale-95 z-10"
-        aria-label="Go back"
-      >
-        <ArrowLeft className="w-5 h-5 text-[rgb(var(--foreground))]" />
-      </button>
+    <div className="min-h-[calc(100vh-80px)] bg-[rgb(var(--background))] py-8">
+      <div className="container-custom">
+        {/* ===== Back Button ===== */}
+        <button
+          onClick={handleBack}
+          className="flex items-center gap-2 text-[rgb(var(--muted-foreground))] hover:text-[rgb(var(--foreground))] transition-colors mb-4"
+          aria-label="Go back"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Back</span>
+        </button>
 
-      <VehicleForm />
+        {/* ===== Form ===== */}
+        <VehicleForm />
+      </div>
     </div>
   );
 }
