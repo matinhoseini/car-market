@@ -3,19 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import {
-  Mail,
-  Phone,
-  MapPin,
-  Send,
-  Clock,
-  ArrowLeft,
-  MessageCircle,
-  Instagram,
-  Twitter,
-  Linkedin,
-  Youtube,
-} from "lucide-react";
+import { Mail, Phone, MapPin, Send, ArrowLeft } from "lucide-react";
 import toast from "react-hot-toast";
 
 // ============================================
@@ -31,17 +19,11 @@ export default function ContactPage() {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // ============================================
-  // Handle form input changes
-  // ============================================
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // ============================================
-  // Handle form submission
-  // ============================================
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -51,25 +33,16 @@ export default function ContactPage() {
     }
 
     setIsSubmitting(true);
-
-    // Simulate API call
     await new Promise((resolve) => setTimeout(resolve, 1500));
-
     toast.success("Message sent successfully! We'll get back to you soon.");
     setFormData({ name: "", email: "", subject: "", message: "" });
     setIsSubmitting(false);
   };
 
-  // ============================================
-  // Go back
-  // ============================================
   const goBack = () => {
     router.back();
   };
 
-  // ============================================
-  // Contact info
-  // ============================================
   const contactInfo = [
     {
       icon: Mail,
@@ -91,19 +64,13 @@ export default function ContactPage() {
     },
   ];
 
-  // ============================================
-  // Social links
-  // ============================================
   const socialLinks = [
-    { icon: Instagram, href: "#", label: "Instagram" },
-    { icon: Twitter, href: "#", label: "Twitter" },
-    { icon: Linkedin, href: "#", label: "LinkedIn" },
-    { icon: Youtube, href: "#", label: "YouTube" },
+    { name: "Instagram", href: "#", color: "text-pink-500" },
+    { name: "Twitter", href: "#", color: "text-blue-400" },
+    { name: "LinkedIn", href: "#", color: "text-blue-600" },
+    { name: "YouTube", href: "#", color: "text-red-500" },
   ];
 
-  // ============================================
-  // Working hours
-  // ============================================
   const workingHours = [
     { day: "Monday - Friday", hours: "9:00 AM - 8:00 PM" },
     { day: "Saturday", hours: "10:00 AM - 6:00 PM" },
@@ -113,17 +80,16 @@ export default function ContactPage() {
   return (
     <div className="min-h-[calc(100vh-80px)] bg-[rgb(var(--background))] py-8">
       <div className="container-custom">
-        {/* ===== Back Button ===== */}
+        {/* Back Button */}
         <button
           onClick={goBack}
           className="flex items-center gap-2 text-[rgb(var(--muted-foreground))] hover:text-[rgb(var(--foreground))] transition-colors mb-6"
-          aria-label="Go back"
         >
           <ArrowLeft className="w-4 h-4" />
           <span>Back</span>
         </button>
 
-        {/* ===== Header ===== */}
+        {/* Header */}
         <div className="text-center mb-12">
           <h1 className="text-4xl md:text-5xl font-bold font-heading">
             📬 Contact Us
@@ -135,7 +101,7 @@ export default function ContactPage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* ===== Contact Info ===== */}
+          {/* Contact Info */}
           <div className="lg:col-span-1 space-y-6">
             <div className="card p-6">
               <h3 className="text-lg font-semibold mb-4">📞 Get in Touch</h3>
@@ -171,7 +137,7 @@ export default function ContactPage() {
               </div>
             </div>
 
-            {/* ===== Working Hours ===== */}
+            {/* Working Hours */}
             <div className="card p-6">
               <h3 className="text-lg font-semibold mb-4">🕐 Working Hours</h3>
               <div className="space-y-2">
@@ -189,37 +155,35 @@ export default function ContactPage() {
               </div>
             </div>
 
-            {/* ===== Social Links ===== */}
+            {/* Social Links */}
             <div className="card p-6">
               <h3 className="text-lg font-semibold mb-4">🌐 Follow Us</h3>
               <div className="flex gap-3">
-                {socialLinks.map((social, index) => {
-                  const Icon = social.icon;
-                  return (
-                    <a
-                      key={index}
-                      href={social.href}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-10 h-10 rounded-full bg-primary-500/10 flex items-center justify-center hover:bg-primary-500/20 transition-all hover:scale-110"
-                      aria-label={social.label}
-                    >
-                      <Icon className="w-5 h-5 text-primary-500" />
-                    </a>
-                  );
-                })}
+                {socialLinks.map((social, index) => (
+                  <a
+                    key={index}
+                    href={social.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-10 h-10 rounded-full bg-primary-500/10 flex items-center justify-center hover:bg-primary-500/20 transition-all hover:scale-110"
+                    aria-label={social.name}
+                  >
+                    <span className={`text-sm font-bold ${social.color}`}>
+                      {social.name.charAt(0)}
+                    </span>
+                  </a>
+                ))}
               </div>
             </div>
           </div>
 
-          {/* ===== Contact Form ===== */}
+          {/* Contact Form */}
           <div className="lg:col-span-2">
             <div className="card p-6 md:p-8">
               <h3 className="text-xl font-bold mb-6">✉️ Send Us a Message</h3>
 
               <form onSubmit={handleSubmit} className="space-y-5">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                  {/* ===== Name ===== */}
                   <div>
                     <label className="block text-sm font-medium text-[rgb(var(--muted-foreground))] mb-1.5">
                       Full Name <span className="text-red-500">*</span>
@@ -235,7 +199,6 @@ export default function ContactPage() {
                     />
                   </div>
 
-                  {/* ===== Email ===== */}
                   <div>
                     <label className="block text-sm font-medium text-[rgb(var(--muted-foreground))] mb-1.5">
                       Email Address <span className="text-red-500">*</span>
@@ -252,7 +215,6 @@ export default function ContactPage() {
                   </div>
                 </div>
 
-                {/* ===== Subject ===== */}
                 <div>
                   <label className="block text-sm font-medium text-[rgb(var(--muted-foreground))] mb-1.5">
                     Subject
@@ -267,7 +229,6 @@ export default function ContactPage() {
                   />
                 </div>
 
-                {/* ===== Message ===== */}
                 <div>
                   <label className="block text-sm font-medium text-[rgb(var(--muted-foreground))] mb-1.5">
                     Message <span className="text-red-500">*</span>
@@ -283,7 +244,6 @@ export default function ContactPage() {
                   />
                 </div>
 
-                {/* ===== Submit ===== */}
                 <button
                   type="submit"
                   disabled={isSubmitting}
@@ -310,7 +270,7 @@ export default function ContactPage() {
           </div>
         </div>
 
-        {/* ===== Map Section (Optional) ===== */}
+        {/* Map */}
         <div className="mt-12">
           <div className="card p-6 overflow-hidden">
             <h3 className="text-lg font-semibold mb-4">📍 Find Us</h3>
@@ -319,9 +279,6 @@ export default function ContactPage() {
                 <MapPin className="w-12 h-12 text-primary-500 mx-auto mb-2" />
                 <p className="text-[rgb(var(--muted-foreground))]">
                   Google Maps Integration
-                </p>
-                <p className="text-xs text-[rgb(var(--muted-foreground))] mt-1">
-                  (Add your Google Maps embed code here)
                 </p>
               </div>
             </div>
