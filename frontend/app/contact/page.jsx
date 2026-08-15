@@ -3,8 +3,53 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Mail, Phone, MapPin, Send, ArrowLeft } from "lucide-react";
+import dynamic from "next/dynamic";
+import {
+  Mail,
+  Phone,
+  MapPin,
+  Send,
+  ArrowLeft,
+  Clock,
+  ExternalLink,
+} from "lucide-react";
 import toast from "react-hot-toast";
+
+// ============================================
+// Lazy load Leaflet components (no SSR)
+// ============================================
+const MapContainer = dynamic(
+  () => import("react-leaflet").then((mod) => mod.MapContainer),
+  { ssr: false },
+);
+const TileLayer = dynamic(
+  () => import("react-leaflet").then((mod) => mod.TileLayer),
+  { ssr: false },
+);
+const Marker = dynamic(
+  () => import("react-leaflet").then((mod) => mod.Marker),
+  { ssr: false },
+);
+const Popup = dynamic(() => import("react-leaflet").then((mod) => mod.Popup), {
+  ssr: false,
+});
+
+// ============================================
+// Leaflet CSS
+// ============================================
+import "leaflet/dist/leaflet.css";
+import L from "leaflet";
+
+// Fix Leaflet default marker icons
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl:
+    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
+  iconUrl:
+    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
+  shadowUrl:
+    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
+});
 
 // ============================================
 // Contact Page
@@ -77,10 +122,14 @@ export default function ContactPage() {
     { day: "Sunday", hours: "Closed" },
   ];
 
+  // Map center coordinates (New York)
+  const mapCenter = [40.7484, -73.9878];
+  const mapZoom = 15;
+
   return (
     <div className="min-h-[calc(100vh-80px)] bg-[rgb(var(--background))] py-8">
       <div className="container-custom">
-        {/* Back Button */}
+        {/* ===== Back Button ===== */}
         <button
           onClick={goBack}
           className="flex items-center gap-2 text-[rgb(var(--muted-foreground))] hover:text-[rgb(var(--foreground))] transition-colors mb-6"
@@ -89,7 +138,7 @@ export default function ContactPage() {
           <span>Back</span>
         </button>
 
-        {/* Header */}
+        {/* ===== Header ===== */}
         <div className="text-center mb-12">
           <h1 className="text-4xl md:text-5xl font-bold font-heading">
             📬 Contact Us
@@ -101,7 +150,7 @@ export default function ContactPage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Contact Info */}
+          {/* ===== Contact Info ===== */}
           <div className="lg:col-span-1 space-y-6">
             <div className="card p-6">
               <h3 className="text-lg font-semibold mb-4">📞 Get in Touch</h3>
@@ -137,9 +186,12 @@ export default function ContactPage() {
               </div>
             </div>
 
-            {/* Working Hours */}
+            {/* ===== Working Hours ===== */}
             <div className="card p-6">
-              <h3 className="text-lg font-semibold mb-4">🕐 Working Hours</h3>
+              <h3 className="text-lg font-semibold mb-4">
+                <Clock className="w-5 h-5 inline mr-2 text-primary-500" />
+                Working Hours
+              </h3>
               <div className="space-y-2">
                 {workingHours.map((item, index) => (
                   <div
@@ -155,7 +207,7 @@ export default function ContactPage() {
               </div>
             </div>
 
-            {/* Social Links */}
+            {/* ===== Social Links ===== */}
             <div className="card p-6">
               <h3 className="text-lg font-semibold mb-4">🌐 Follow Us</h3>
               <div className="flex gap-3">
@@ -177,7 +229,7 @@ export default function ContactPage() {
             </div>
           </div>
 
-          {/* Contact Form */}
+          {/* ===== Contact Form ===== */}
           <div className="lg:col-span-2">
             <div className="card p-6 md:p-8">
               <h3 className="text-xl font-bold mb-6">✉️ Send Us a Message</h3>
@@ -270,17 +322,62 @@ export default function ContactPage() {
           </div>
         </div>
 
-        {/* Map */}
+        {/* ===== Map Section ===== */}
         <div className="mt-12">
           <div className="card p-6 overflow-hidden">
-            <h3 className="text-lg font-semibold mb-4">📍 Find Us</h3>
-            <div className="w-full h-64 bg-[rgb(var(--muted))] rounded-lg flex items-center justify-center">
-              <div className="text-center">
-                <MapPin className="w-12 h-12 text-primary-500 mx-auto mb-2" />
-                <p className="text-[rgb(var(--muted-foreground))]">
-                  Google Maps Integration
-                </p>
-              </div>
+            <div className="flex flex-wrap items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">
+                <MapPin className="w-5 h-5 inline mr-2 text-primary-500" />
+                Find Us
+              </h3>
+              <a
+                href="https://www.google.com/maps/dir//123+Car+Street+New+York+NY"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-primary-500 hover:underline flex items-center gap-1"
+              >
+                Get Directions
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
+
+            <div className="w-full h-64 md:h-80 lg:h-96 rounded-lg overflow-hidden">
+              <MapContainer
+                center={mapCenter}
+                zoom={mapZoom}
+                className="w-full h-full"
+                scrollWheelZoom={false}
+              >
+                <TileLayer
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                />
+                <Marker position={mapCenter}>
+                  <Popup>
+                    <div className="text-center">
+                      <strong>CarMarket</strong>
+                      <br />
+                      123 Car Street
+                      <br />
+                      New York, NY 10001
+                      <br />
+                      <a
+                        href="https://www.google.com/maps/dir//123+Car+Street+New+York+NY"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary-500 text-sm hover:underline"
+                      >
+                        Get Directions →
+                      </a>
+                    </div>
+                  </Popup>
+                </Marker>
+              </MapContainer>
+            </div>
+
+            <div className="mt-4 flex items-center gap-2 text-sm text-[rgb(var(--muted-foreground))]">
+              <MapPin className="w-4 h-4 text-primary-500 flex-shrink-0" />
+              <span>123 Car Street, New York, NY 10001, USA</span>
             </div>
           </div>
         </div>
