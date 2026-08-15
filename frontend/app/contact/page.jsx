@@ -147,6 +147,14 @@ export default function ContactPage() {
                       key={index}
                       href={item.href}
                       className="flex items-start gap-3 p-3 rounded-lg hover:bg-[rgb(var(--muted))] transition-colors group"
+                      target={
+                        item.href.startsWith("http") ? "_blank" : undefined
+                      }
+                      rel={
+                        item.href.startsWith("http")
+                          ? "noopener noreferrer"
+                          : undefined
+                      }
                     >
                       <div className="p-2 bg-primary-500/10 rounded-lg group-hover:bg-primary-500/20 transition-colors">
                         <Icon className="w-5 h-5 text-primary-500" />
