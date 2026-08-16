@@ -1,12 +1,13 @@
-// app/about/AboutClient.jsx
 "use client";
 
+import Link from "next/link";
 import {
   Accordion,
   AccordionItem,
   AccordionTrigger,
   AccordionContent,
 } from "../../components/common/Accordion";
+import { Mail, ArrowRight } from "lucide-react";
 
 const faqs = [
   {
@@ -37,6 +38,7 @@ export default function AboutUs() {
           Everything you need to know about our platform
         </p>
 
+        {/* ===== FAQ Section ===== */}
         <Accordion>
           {faqs.map((faq, index) => (
             <AccordionItem key={index} index={index}>
@@ -47,6 +49,21 @@ export default function AboutUs() {
             </AccordionItem>
           ))}
         </Accordion>
+
+        {/* ===== Contact Section ===== */}
+        <div className="mt-12 p-6 bg-primary-500/5 rounded-xl border border-primary-500/20 text-center">
+          <h2 className="text-xl font-semibold mb-2">Still have questions?</h2>
+          <p className="text-[rgb(var(--muted-foreground))] mb-4">
+            We're here to help you with anything you need.
+          </p>
+          <Link href="/contact">
+            <button className="btn-primary flex items-center gap-2 mx-auto">
+              <Mail className="w-4 h-4" />
+              Contact Us
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </Link>
+        </div>
       </div>
     </div>
   );
