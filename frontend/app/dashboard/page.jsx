@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, memo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -31,7 +31,7 @@ import VehicleCard from "../../components/vehicles/VehicleCard";
 import { getStorage, removeStorage } from "../../helpers/storage";
 import { STORAGE_KEYS } from "../../helpers/constants";
 
-export default function DashboardPage() {
+function DashboardPage() {
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -431,8 +431,14 @@ export default function DashboardPage() {
           </div>
 
           {carsLoading ? (
-            <div className="flex justify-center items-center py-12">
-              <div className="spinner"></div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="card p-4 animate-pulse">
+                  <div className="w-full h-48 bg-[rgb(var(--muted))] rounded-lg"></div>
+                  <div className="h-4 bg-[rgb(var(--muted))] rounded mt-3 w-3/4"></div>
+                  <div className="h-4 bg-[rgb(var(--muted))] rounded mt-2 w-1/2"></div>
+                </div>
+              ))}
             </div>
           ) : myCars.length === 0 ? (
             <div className="card p-8 text-center">
@@ -574,3 +580,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+export default memo(DashboardPage);
